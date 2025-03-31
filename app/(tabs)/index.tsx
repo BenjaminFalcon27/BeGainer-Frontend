@@ -1,24 +1,18 @@
-import { Image, StyleSheet, Platform, ScrollView } from "react-native";
-import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
-import { Colors } from "@/constants/Colors";
+import { View, StyleSheet } from "react-native";
 import AuthScreen from "@/components/screens/auth/AuthScreen";
+import { ThemedView } from "@/components/ThemedView";
 
 export default function HomeScreen() {
   return (
-    <ScrollView contentContainerStyle={styles.scrollView}>
-      <ThemedView style={styles.container}>
+    <View style={styles.container}>
+      <ThemedView>
         <AuthScreen />
       </ThemedView>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flexGrow: 1,
-  },
-
   container: {
     flex: 1,
     alignItems: "center",
