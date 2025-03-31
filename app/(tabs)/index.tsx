@@ -1,30 +1,27 @@
 import { Image, StyleSheet, Platform, ScrollView } from "react-native";
-import { HelloWave } from "@/components/HelloWave";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { Colors } from "@/constants/Colors";
+import AuthScreen from "@/components/screens/auth/AuthScreen";
 
 export default function HomeScreen() {
   return (
-    <ScrollView style={{ backgroundColor: Colors.dark.background }}>
-      <ThemedView
-        style={[
-          styles.titleContainer,
-          { backgroundColor: Colors.dark.background },
-        ]}
-      >
-        <ThemedText type="title" style={{ color: Colors.dark.text }}>
-          Welcome!
-        </ThemedText>
-        <HelloWave />
+    <ScrollView contentContainerStyle={styles.scrollView}>
+      <ThemedView style={styles.container}>
+        <AuthScreen />
       </ThemedView>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  scrollView: {
+    flexGrow: 1,
+  },
+
+  container: {
+    flex: 1,
     alignItems: "center",
-    gap: 8,
+    justifyContent: "center",
   },
 });
