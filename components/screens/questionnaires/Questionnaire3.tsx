@@ -93,16 +93,27 @@ export default function QuestionnaireStep3() {
         <View style={styles.rowCenter}>
           <View style={styles.col}>
             <Text style={styles.label}>Quel âge as-tu?</Text>
-
-            <Picker
-              selectedValue={age}
-              onValueChange={(itemValue) => setAge(itemValue)}
-              style={{ height: 50, width: "100%" }}
-            >
-              {[...Array(100).keys()].map((i) => (
-                <Picker.Item key={i} label={`${i + 1}`} value={`${i + 1}`} />
-              ))}
-            </Picker>
+            <View
+            style={{
+              borderWidth: 1,
+              backgroundColor: Colors.dark.card,
+              borderRadius: 8,
+              borderColor: Colors.dark.card,
+            }}>
+              <Picker
+                selectedValue={age}
+                mode="dropdown"
+                onValueChange={(itemValue) => setAge(itemValue)}
+                dropdownIconColor={Colors.dark.text}
+                selectionColor={Colors.dark.text}
+                style={{ height: 50, width: "100%", color: Colors.dark.text}}
+              >
+                {[...Array(100).keys()].map((i) => (
+                  <Picker.Item key={i} label={`${i + 1}`} value={`${i + 1}`} />
+                ))}
+              </Picker>
+            </View>
+            
           </View>
         </View>
 
@@ -110,29 +121,49 @@ export default function QuestionnaireStep3() {
         <View style={styles.row}>
           <View style={styles.col}>
             <Text style={styles.label}>Taille (cm)</Text>
-
+            <View
+            style={{
+              borderWidth: 1,
+              backgroundColor: Colors.dark.card,
+              borderRadius: 8,
+              borderColor: Colors.dark.card,
+            }}>
             <Picker
+            mode="dropdown"
               selectedValue={height}
               onValueChange={(itemValue) => setHeight(itemValue)}
-              style={{ height: 50, width: "100%" }}
+              dropdownIconColor={Colors.dark.text}
+              selectionColor={Colors.dark.text}
+              style={{ height: 50, width: "100%", color: Colors.dark.text}}
             >
               {[...Array(250).keys()].map((i) => (
                 <Picker.Item key={i} label={`${i + 1}`} value={`${i + 1}`} />
               ))}
             </Picker>
+            </View>
           </View>
           <View style={styles.col}>
             <Text style={styles.label}>Poids (kg)</Text>
-
+            <View
+            style={{
+              borderWidth: 1,
+              backgroundColor: Colors.dark.card,
+              borderRadius: 8,
+              borderColor: Colors.dark.card,
+            }}>
             <Picker
+              mode="dropdown"
               selectedValue={weight}
               onValueChange={(itemValue) => setWeight(itemValue)}
-              style={{ height: 50, width: "100%" }}
+              dropdownIconColor={Colors.dark.text}
+              selectionColor={Colors.dark.text}
+              style={{ height: 50, width: "100%", color: Colors.dark.text}}
             >
               {[...Array(250).keys()].map((i) => (
                 <Picker.Item key={i} label={`${i + 1}`} value={`${i + 1}`} />
               ))}
             </Picker>
+            </View>
           </View>
         </View>
 

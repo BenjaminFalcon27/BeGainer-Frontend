@@ -121,16 +121,26 @@ export default function QuestionnaireStep5() {
         <View style={styles.rowCenter}>
           <View style={styles.col}>
             <Text style={styles.label}>Combien de séances par semaine ?</Text>
-
+            <View
+            style={{
+              borderWidth: 1,
+              backgroundColor: Colors.dark.card,
+              borderRadius: 8,
+              borderColor: Colors.dark.card,
+            }}>
             <Picker
+            mode="dropdown"
               selectedValue={sessionsPerWeek}
               onValueChange={(itemValue) => setSessionsPerWeek(itemValue)}
-              style={{ height: 30, width: "100%" }}
+              dropdownIconColor={Colors.dark.text}
+                selectionColor={Colors.dark.text}
+              style={{ height: 50, width: "100%", color: Colors.dark.text }}
             >
               {[...Array(7).keys()].map((i) => (
                 <Picker.Item key={i} label={`${i + 1}`} value={`${i + 1}`} />
               ))}
             </Picker>
+            </View>
           </View>
         </View>
 
