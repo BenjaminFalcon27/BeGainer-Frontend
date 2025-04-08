@@ -1,15 +1,122 @@
 import React, { useState } from "react";
-import { TextInput, TouchableOpacity, StyleSheet, View } from "react-native";
+import {
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  View,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 import * as Animatable from "react-native-animatable";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { Colors } from "@/constants/Colors";
+import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const validateEmail = (email: string) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
+  const validatePassword = (password: string) => {
+    const regex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+    return regex.test(password);
+  };
+
+  const handleAuth = async () => {
+    if (!email || !password) {
+      Alert.alert("Erreur", "Veuillez remplir tous les champs.");
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      Alert.alert(
+        "Email invalide",
+        "Veuillez saisir une adresse email valide."
+      );
+      return;
+    }
+
+    if (!validatePassword(password)) {
+      Alert.alert(
+        "Mot de passe invalide",
+        "Le mot de passe doit contenir au moins 8 caractères, une lettre et un chiffre."
+      );
+      return;
+    }
+
+    if (!isLogin && password !== confirmPassword) {
+      Alert.alert("Erreur", "Les mots de passe ne correspondent pas.");
+      return;
+    }
+
+    setLoading(true);
+
+    const url = `https://begainer-api.onrender.com/api/auth/${
+      isLogin ? "login" : "register"
+    }`;
+    const payload = { email, password };
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const contentType = response.headers.get("content-type");
+
+      if (!response.ok) {
+        if (contentType && contentType.includes("application/json")) {
+          const data = await response.json();
+          throw new Error(data.message || "Erreur inconnue");
+        } else {
+          const text = await response.text();
+          throw new Error("Erreur serveur : " + text.slice(0, 100));
+        }
+      }
+
+      if (contentType && contentType.includes("application/json")) {
+        const data = await response.json();
+        console.log("Réponse backend :", data);
+
+        const token = data.token;
+
+        if (!token) {
+          throw new Error(
+            "Jeton d'authentification non fourni par le serveur."
+          );
+        }
+
+        await AsyncStorage.setItem("authToken", token);
+
+        if (isLogin) {
+          router.push("/user/profile");
+        } else {
+          router.push("/questionnaire/questionnaire");
+        }
+      } else {
+        throw new Error("Réponse non valide (pas du JSON)");
+      }
+    } catch (error: any) {
+      if (isLogin) {
+        Alert.alert("Erreur", error.message);
+      } else {
+        Alert.alert("Erreur", "Une erreur est survenue. Veuillez réessayer.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -41,7 +148,7 @@ export default function AuthScreen() {
           onChangeText={setPassword}
         />
 
-        {isLogin ? null : (
+        {!isLogin && (
           <Animatable.View animation="fadeIn" duration={500}>
             <TextInput
               style={styles.input}
@@ -54,10 +161,18 @@ export default function AuthScreen() {
           </Animatable.View>
         )}
 
-        <TouchableOpacity style={styles.button}>
-          <ThemedText style={styles.buttonText}>
-            {isLogin ? "Se connecter" : "S'inscrire"}
-          </ThemedText>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleAuth}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <ThemedText style={styles.buttonText}>
+              {isLogin ? "Se connecter" : "S'inscrire"}
+            </ThemedText>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
@@ -88,12 +203,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   title: {
+    fontFamily: "BarlowLight",
     textAlign: "center",
     color: Colors.dark.text,
     marginBottom: 20,
     fontSize: 24,
   },
   input: {
+    fontFamily: "BarlowLight",
     backgroundColor: "#2A2233",
     color: Colors.dark.text,
     padding: 12,
@@ -103,6 +220,7 @@ const styles = StyleSheet.create({
     height: 50,
   },
   button: {
+    fontFamily: "BarlowLight",
     backgroundColor: Colors.dark.tint,
     padding: 12,
     borderRadius: 5,
@@ -111,11 +229,13 @@ const styles = StyleSheet.create({
     width: 350,
   },
   buttonText: {
+    fontFamily: "BarlowLight",
     color: "#FFF",
     fontWeight: "bold",
     textAlign: "center",
   },
   link: {
+    fontFamily: "BarlowLight",
     color: Colors.dark.tint,
     textAlign: "center",
     marginTop: 15,
