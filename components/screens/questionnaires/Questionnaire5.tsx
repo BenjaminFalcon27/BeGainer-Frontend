@@ -73,7 +73,6 @@ export default function QuestionnaireStep5() {
 
     const data = await response.json();
     if (response.ok) {
-      alert("Vos préférences ont été enregistrées avec succès !");
       router.push("/user/profile");
     }
     if (!response.ok) {

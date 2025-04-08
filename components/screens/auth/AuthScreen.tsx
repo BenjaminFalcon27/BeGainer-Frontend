@@ -73,46 +73,38 @@ export default function AuthScreen() {
         body: JSON.stringify(payload),
       });
 
-      const contentType = response.headers.get("content-type");
+      const text = await response.text();
+      console.log("Réponse brute :", text);
+
+      let data;
+      try {
+        data = JSON.parse(text);
+        console.log("Données parsées :", data);
+      } catch (err) {
+        throw new Error("Réponse invalide du serveur : " + text.slice(0, 100));
+      }
 
       if (!response.ok) {
-        if (contentType && contentType.includes("application/json")) {
-          const data = await response.json();
-          throw new Error(data.message || "Erreur inconnue");
-        } else {
-          const text = await response.text();
-          throw new Error("Erreur serveur : " + text.slice(0, 100));
-        }
+        throw new Error(data.error || "Erreur inconnue");
       }
 
-      if (contentType && contentType.includes("application/json")) {
-        const data = await response.json();
-        console.log("Réponse backend :", data);
-
-        const token = data.token;
-
-        if (!token) {
-          throw new Error(
-            "Jeton d'authentification non fourni par le serveur."
-          );
-        }
-
-        await AsyncStorage.setItem("authToken", token);
-
-        if (isLogin) {
+      if (isLogin) {
+        if (data.token) {
+          await AsyncStorage.setItem("token", data.token);
           router.push("/user/profile");
         } else {
-          router.push("/questionnaire/questionnaire");
+          throw new Error("Aucun token fourni par le serveur.");
         }
       } else {
-        throw new Error("Réponse non valide (pas du JSON)");
+        if (!data.id) {
+          throw new Error("Identifiant utilisateur non fourni par le serveur.");
+        }
+
+        await AsyncStorage.setItem("userId", data.id.toString());
+        router.push("/questionnaire/questionnaire");
       }
     } catch (error: any) {
-      if (isLogin) {
-        Alert.alert("Erreur", error.message);
-      } else {
-        Alert.alert("Erreur", "Une erreur est survenue. Veuillez réessayer.");
-      }
+      Alert.alert("Erreur", error.message);
     } finally {
       setLoading(false);
     }
