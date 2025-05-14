@@ -1,29 +1,29 @@
-import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   Animated,
   TouchableOpacity,
-  Dimensions,
+  Alert,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { Colors } from "@/constants/Colors";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
-import { FontAwesome5 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React from "react";
+import { submitUserPreferences } from "@/app/services/apiService";
 
-export default function QuestionnaireStep5() {
+export default function QuestionnaireScreen() {
   const router = useRouter();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const translateYAnim = useRef(new Animated.Value(20)).current;
-  const [duration, setDuration] = useState(60);
-  const [sessionsPerWeek, setSessionsPerWeek] = useState("4");
 
-  useEffect(() => {
+  const [fadeAnim] = React.useState(new Animated.Value(0));
+  const [translateYAnim] = React.useState(new Animated.Value(50));
+  const [duration, setDuration] = React.useState(60);
+  const [sessionsPerWeek, setSessionsPerWeek] = React.useState("3");
+
+  React.useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -36,49 +36,48 @@ export default function QuestionnaireStep5() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [fadeAnim, translateYAnim]);
 
   const handleSubmit = async () => {
-    const userId = await AsyncStorage.getItem("userId");
-    const name = await AsyncStorage.getItem("name");
-    const gender = await AsyncStorage.getItem("gender");
-    const age = await AsyncStorage.getItem("age");
-    const height_cm = await AsyncStorage.getItem("height");
-    const weight_kg = await AsyncStorage.getItem("weight");
-    const goal = await AsyncStorage.getItem("goal");
-    const training_place = await AsyncStorage.getItem("trainingPlace");
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      const name = await AsyncStorage.getItem("name");
+      const gender = await AsyncStorage.getItem("gender");
+      const age = await AsyncStorage.getItem("age");
+      const height_cm = await AsyncStorage.getItem("height");
+      const weight_kg = await AsyncStorage.getItem("weight");
+      const goal = await AsyncStorage.getItem("goal");
+      const training_place = await AsyncStorage.getItem("trainingPlace");
 
-    const params = {
-      user_id: userId,
-      name: name,
-      gender: gender,
-      age: parseInt(age || "0", 10),
-      height_cm: parseInt(height_cm || "0", 10),
-      weight_kg: parseInt(weight_kg || "0", 10),
-      training_freq: parseInt(sessionsPerWeek, 10),
-      goal: goal,
-      training_place: training_place,
-      session_length: duration,
-      milestone: "default",
-    };
+      if (!userId) {
+        Alert.alert(
+          "Erreur",
+          "Impossible de soumettre les préférences sans identifiant utilisateur."
+        );
+        return;
+      }
 
-    const url = `https://begainer-api.onrender.com/api/user-preferences`;
+      const params = {
+        user_id: userId,
+        name: name,
+        gender: gender,
+        age: parseInt(age || "0", 10),
+        height_cm: parseInt(height_cm || "0", 10),
+        weight_kg: parseInt(weight_kg || "0", 10),
+        training_freq: parseInt(sessionsPerWeek, 10),
+        goal: goal,
+        training_place: training_place,
+        session_length: duration,
+        milestone: "default",
+      };
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(params),
-    });
-
-    const data = await response.json();
-    if (response.ok) {
+      await submitUserPreferences(params);
       router.push("/user/profile");
-    }
-    if (!response.ok) {
-      alert(
-        "Une erreur est survenue lors de l'enregistrement des préférences."
+    } catch (error: any) {
+      Alert.alert(
+        "Erreur",
+        error.message ||
+          "Une erreur est survenue lors de l'enregistrement des préférences."
       );
     }
   };
@@ -101,7 +100,6 @@ export default function QuestionnaireStep5() {
         <View style={styles.rowCenter}>
           <View style={styles.col}>
             <Text style={styles.label}>Durée de mes séances (en minutes)</Text>
-
             <Slider
               style={styles.slider}
               minimumValue={30}
@@ -113,39 +111,35 @@ export default function QuestionnaireStep5() {
               maximumTrackTintColor={Colors.dark.text}
               thumbTintColor={Colors.dark.primary}
             />
-
             <Text style={styles.durationText}>{duration} min</Text>
           </View>
         </View>
 
-        {/* Séances par semaine */}
         <View style={styles.rowCenter}>
           <View style={styles.col}>
             <Text style={styles.label}>Combien de séances par semaine ?</Text>
             <View
-            style={{
-              borderWidth: 1,
-              backgroundColor: Colors.dark.card,
-              borderRadius: 8,
-              borderColor: Colors.dark.card,
-            }}>
-            <Picker
-            mode="dropdown"
-              selectedValue={sessionsPerWeek}
-              onValueChange={(itemValue) => setSessionsPerWeek(itemValue)}
-              dropdownIconColor={Colors.dark.text}
-                selectionColor={Colors.dark.text}
-              style={{ height: 50, width: "100%", color: Colors.dark.text }}
+              style={{
+                borderWidth: 1,
+                backgroundColor: Colors.dark.card,
+                borderRadius: 8,
+                borderColor: Colors.dark.card,
+              }}
             >
-              {[...Array(7).keys()].map((i) => (
-                <Picker.Item key={i} label={`${i + 1}`} value={`${i + 1}`} />
-              ))}
-            </Picker>
+              <Picker
+                mode="dropdown"
+                selectedValue={sessionsPerWeek}
+                onValueChange={(itemValue) => setSessionsPerWeek(itemValue)}
+                dropdownIconColor={Colors.dark.text}
+                style={{ height: 50, width: "100%", color: Colors.dark.text }}
+              >
+                {[...Array(7).keys()].map((i) => (
+                  <Picker.Item key={i} label={`${i + 1}`} value={`${i + 1}`} />
+                ))}
+              </Picker>
             </View>
           </View>
         </View>
-
-        {/* Bouton Suivant */}
       </Animated.View>
       <TouchableOpacity style={styles.nextButton} onPress={handleSubmit}>
         <Text style={styles.nextButtonText}>Créer mon compte</Text>
@@ -153,8 +147,6 @@ export default function QuestionnaireStep5() {
     </View>
   );
 }
-
-const { width } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
   container: {
@@ -182,7 +174,7 @@ const styles = StyleSheet.create({
   },
   rowCenter: {
     flexDirection: "row",
-    justifyContent: "center", // Centrer les éléments
+    justifyContent: "center",
     alignItems: "center",
     width: "100%",
     height: 100,

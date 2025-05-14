@@ -1,3 +1,5 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 const API_BASE_URL = "https://begainer-api.onrender.com/api";
 
 export interface User {
@@ -18,6 +20,24 @@ export interface UserPreferencesResponse {
   name: string;
   error?: string;
 }
+
+export interface UserPreferencesPayload {
+  user_id: string | null;
+  name: string | null;
+  gender: string | null;
+  age: number;
+  height_cm: number;
+  weight_kg: number;
+  training_freq: number;
+  goal: string | null;
+  training_place: string | null;
+  session_length: number;
+  milestone: string;
+}
+
+export type SubmitPreferencesResponse =
+  | UserPreferencesResponse
+  | { message: string };
 
 const handleApiResponse = async <T>(response: Response): Promise<T> => {
   const responseText = await response.text();
@@ -96,4 +116,27 @@ export const fetchUserPreferences = async (
     },
   });
   return handleApiResponse<UserPreferencesResponse>(response);
+};
+
+export const submitUserPreferences = async (
+  preferences: UserPreferencesPayload
+): Promise<SubmitPreferencesResponse> => {
+  const url = `${API_BASE_URL}/user-preferences`;
+
+  const token = await AsyncStorage.getItem("token");
+  if (!token) {
+    throw new Error(
+      "Token d'authentification non trouvé pour soumettre les préférences."
+    );
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`, // Authentification
+    },
+    body: JSON.stringify(preferences),
+  });
+  return handleApiResponse<SubmitPreferencesResponse>(response);
 };
