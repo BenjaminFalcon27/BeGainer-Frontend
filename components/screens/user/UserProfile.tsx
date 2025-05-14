@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Animated } from "react-native";
 import { Colors } from "@/constants/Colors";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import React from "react";
 
 export default function UserProfile() {
   const router = useRouter();
@@ -27,11 +28,13 @@ export default function UserProfile() {
 
     const fetchUserId = async () => {
       const storedId = await AsyncStorage.getItem("userId");
+      console.log("User ID:", storedId);
       setUserId(storedId);
     };
 
     const fetchName = async () => {
       const storedName = await AsyncStorage.getItem("name");
+      console.log("User Name:", storedName);
       setName(storedName);
     };
 

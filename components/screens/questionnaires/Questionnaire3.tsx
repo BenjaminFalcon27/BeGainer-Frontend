@@ -12,6 +12,7 @@ import { Colors } from "@/constants/Colors";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import React from "react";
 
 export default function QuestionnaireStep3() {
   const router = useRouter();

@@ -74,12 +74,10 @@ export default function AuthScreen() {
       });
 
       const text = await response.text();
-      console.log("Réponse brute :", text);
 
       let data;
       try {
         data = JSON.parse(text);
-        console.log("Données parsées :", data);
       } catch (err) {
         throw new Error("Réponse invalide du serveur : " + text.slice(0, 100));
       }

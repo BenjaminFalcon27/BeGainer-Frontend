@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { FontAwesome5 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import React from "react";
 
 export default function QuestionnaireStep5() {
   const router = useRouter();

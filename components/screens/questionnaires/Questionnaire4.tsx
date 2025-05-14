@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { FontAwesome5 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import React from "react";
 
 export default function QuestionnaireStep4() {
   const router = useRouter();
@@ -67,15 +68,15 @@ export default function QuestionnaireStep4() {
               <TouchableOpacity
                 style={[
                   styles.goalButton,
-                  goal === "loose weight" && styles.selectedGoalButton,
+                  goal === "lose weight" && styles.selectedGoalButton,
                 ]}
-                onPress={() => setGoal("loose weight")}
+                onPress={() => setGoal("lose weight")}
               >
                 <FontAwesome5 name="weight" size={24} color="#FFF" />
                 <Text
                   style={[
                     styles.goalButtonText,
-                    goal === "loose weight" && styles.selectedGoalButtonText,
+                    goal === "lose weight" && styles.selectedGoalButtonText,
                   ]}
                 >
                   Perdre du gras

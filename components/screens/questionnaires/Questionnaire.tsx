@@ -11,6 +11,7 @@ import LottieView from "lottie-react-native";
 import { Colors } from "@/constants/Colors";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import React from "react";
 
 export default function QuestionnaireStep1() {
   const [userId, setUserId] = useState<string | null>(null);
