@@ -6,13 +6,19 @@ import {
   View,
   Alert,
   ActivityIndicator,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import * as Animatable from "react-native-animatable";
 import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
 import { Colors } from "@/constants/Colors";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  loginUser,
+  registerUser,
+  fetchUserPreferences,
+} from "@/app/services/apiService";
 
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -37,7 +43,6 @@ export default function AuthScreen() {
       Alert.alert("Erreur", "Veuillez remplir tous les champs.");
       return;
     }
-
     if (!validateEmail(email)) {
       Alert.alert(
         "Email invalide",
@@ -45,7 +50,6 @@ export default function AuthScreen() {
       );
       return;
     }
-
     if (!validatePassword(password)) {
       Alert.alert(
         "Mot de passe invalide",
@@ -53,7 +57,6 @@ export default function AuthScreen() {
       );
       return;
     }
-
     if (!isLogin && password !== confirmPassword) {
       Alert.alert("Erreur", "Les mots de passe ne correspondent pas.");
       return;
@@ -61,117 +64,130 @@ export default function AuthScreen() {
 
     setLoading(true);
 
-    const url = `https://begainer-api.onrender.com/api/auth/${
-      isLogin ? "login" : "register"
-    }`;
-    const payload = { email, password };
-
     try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      let userId: string | undefined;
+      let token: string | undefined;
+      let userNameFromAuth: string | undefined;
 
-      const text = await response.text();
-
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (err) {
-        throw new Error("Réponse invalide du serveur : " + text.slice(0, 100));
+      if (isLogin) {
+        const loginData = await loginUser(email, password);
+        if (loginData.token && loginData.user?.id) {
+          token = loginData.token;
+          userId = loginData.user.id.toString();
+          userNameFromAuth = loginData.name;
+        } else {
+          throw new Error(
+            "Token ou informations utilisateur manquantes après connexion."
+          );
+        }
+      } else {
+        const registerData = await registerUser(email, password);
+        userId =
+          registerData.id?.toString() || registerData.user?.id?.toString();
+        token = registerData.token;
+        userNameFromAuth = registerData.name;
+        if (!userId) {
+          throw new Error("ID utilisateur non fourni après inscription.");
+        }
       }
 
-      if (!response.ok) {
-        throw new Error(data.error || "Erreur inconnue");
+      if (userId) {
+        await AsyncStorage.setItem("userId", userId);
+      }
+
+      if (token) {
+        await AsyncStorage.setItem("token", token);
+      }
+
+      if (userNameFromAuth) {
+        await AsyncStorage.setItem("name", userNameFromAuth);
+      }
+
+      if (isLogin && userId && token && !userNameFromAuth) {
+        try {
+          const prefsData = await fetchUserPreferences(userId, token);
+          if (prefsData && prefsData.name) {
+            await AsyncStorage.setItem("name", prefsData.name);
+          }
+        } catch (prefsError: any) {}
       }
 
       if (isLogin) {
-        if (data.token) {
-          await AsyncStorage.setItem("token", data.token);
-          router.push("/user/profile");
-        } else {
-          throw new Error("Aucun token fourni par le serveur.");
-        }
+        router.push("/user/profile");
       } else {
-        if (!data.id) {
-          throw new Error("Identifiant utilisateur non fourni par le serveur.");
-        }
-
-        await AsyncStorage.setItem("userId", data.id.toString());
         router.push("/questionnaire/questionnaire");
       }
     } catch (error: any) {
-      Alert.alert("Erreur", error.message);
+      Alert.alert(
+        "Erreur d'authentification",
+        error.message || "Une erreur est survenue."
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Animatable.View
-        style={styles.formContainer}
-        animation="fadeIn"
-        duration={500}
-      >
-        <ThemedText type="title" style={styles.title}>
-          {isLogin ? "Connexion" : "Inscription"}
-        </ThemedText>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor={Colors.dark.text}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={setEmail}
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Mot de passe"
-          placeholderTextColor={Colors.dark.text}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
-
-        {!isLogin && (
-          <Animatable.View animation="fadeIn" duration={500}>
-            <TextInput
-              style={styles.input}
-              placeholder="Confirmer le mot de passe"
-              placeholderTextColor={Colors.dark.text}
-              secureTextEntry
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-            />
-          </Animatable.View>
-        )}
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleAuth}
-          disabled={loading}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={styles.container}>
+        <Animatable.View
+          style={styles.formContainer}
+          animation="fadeIn"
+          duration={500}
         >
-          {loading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <ThemedText style={styles.buttonText}>
-              {isLogin ? "Se connecter" : "S'inscrire"}
-            </ThemedText>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
-          <ThemedText style={styles.link}>
-            {isLogin ? "Créer un compte" : "Déjà un compte ? Connectez-vous"}
+          <ThemedText type="title" style={styles.title}>
+            {isLogin ? "Connexion" : "Inscription"}
           </ThemedText>
-        </TouchableOpacity>
-      </Animatable.View>
-    </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor={Colors.dark.text}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Mot de passe"
+            placeholderTextColor={Colors.dark.text}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+          {!isLogin && (
+            <Animatable.View animation="fadeIn" duration={500}>
+              <TextInput
+                style={styles.input}
+                placeholder="Confirmer le mot de passe"
+                placeholderTextColor={Colors.dark.text}
+                secureTextEntry
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+              />
+            </Animatable.View>
+          )}
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleAuth}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <ThemedText style={styles.buttonText}>
+                {isLogin ? "Se connecter" : "S'inscrire"}
+              </ThemedText>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
+            <ThemedText style={styles.link}>
+              {isLogin ? "Créer un compte" : "Déjà un compte ? Connectez-vous"}
+            </ThemedText>
+          </TouchableOpacity>
+        </Animatable.View>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 

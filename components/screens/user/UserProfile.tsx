@@ -28,13 +28,11 @@ export default function UserProfile() {
 
     const fetchUserId = async () => {
       const storedId = await AsyncStorage.getItem("userId");
-      console.log("User ID:", storedId);
       setUserId(storedId);
     };
 
     const fetchName = async () => {
       const storedName = await AsyncStorage.getItem("name");
-      console.log("User Name:", storedName);
       setName(storedName);
     };
 
