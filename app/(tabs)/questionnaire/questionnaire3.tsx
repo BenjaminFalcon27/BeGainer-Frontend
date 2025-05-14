@@ -1,4 +1,5 @@
 import QuestionnaireStep3 from "@/components/screens/questionnaires/Questionnaire3";
+import React from "react";
 import { View, Text } from "react-native";
 
 export default function QuestionnaireScreen() {
