@@ -113,7 +113,7 @@ export default function AuthScreen() {
       }
 
       if (isLogin) {
-        router.push("/user/profile");
+        router.push("/dashboard/dashboard");
       } else {
         router.push("/questionnaire/questionnaire");
       }

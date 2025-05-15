@@ -72,7 +72,7 @@ export default function QuestionnaireScreen() {
       };
 
       await submitUserPreferences(params);
-      router.push("/user/profile");
+      router.push("/dashboard/dashboard");
     } catch (error: any) {
       Alert.alert(
         "Erreur",

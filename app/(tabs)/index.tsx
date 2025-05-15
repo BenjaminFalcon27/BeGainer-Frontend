@@ -7,6 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "react-native/Libraries/NewAppScreen";
 import { useRouter } from "expo-router";
 import { fetchUserPreferences } from "../services/apiService";
+import DashboardScreen from "@/components/screens/dashboard/DashboardScreen";
 
 export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +54,7 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <ThemedView style={styles.themedViewContainer}>
-        {userToken ? <UserProfile /> : <AuthScreen />}
+        {userToken ? <DashboardScreen /> : <AuthScreen />}
       </ThemedView>
     </View>
   );
