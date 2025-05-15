@@ -5,16 +5,29 @@ import { ThemedView } from "@/components/ThemedView";
 import React, { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "react-native/Libraries/NewAppScreen";
+import { useRouter } from "expo-router";
+import { fetchUserPreferences } from "../services/apiService";
 
 export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [userToken, setUserToken] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
         const token = await AsyncStorage.getItem("token");
+        const id = await AsyncStorage.getItem("userId");
         setUserToken(token);
+        setUserId(id);
+
+        if (token && id) {
+          const prefs = await fetchUserPreferences(id, token);
+          if (!prefs || prefs.error) {
+            router.replace("/questionnaire/questionnaire");
+          }
+        }
       } catch (e) {
         console.error(
           "Erreur lors de la vérification du statut d'authentification:",

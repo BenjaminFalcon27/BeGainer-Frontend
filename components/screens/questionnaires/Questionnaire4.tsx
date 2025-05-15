@@ -130,7 +130,8 @@ export default function QuestionnaireStep4() {
               <TouchableOpacity
                 style={[
                   styles.goalButton,
-                  trainingPlace === "home_no_equipment" && styles.selectedGoalButton,
+                  trainingPlace === "home_no_equipment" &&
+                    styles.selectedGoalButton,
                 ]}
                 onPress={() => setTrainingPlace("home_no_equipment")}
               >
@@ -138,28 +139,11 @@ export default function QuestionnaireStep4() {
                 <Text
                   style={[
                     styles.goalButtonText,
-                    trainingPlace === "home_no_equipment" && styles.selectedGoalButtonText,
+                    trainingPlace === "home_no_equipment" &&
+                      styles.selectedGoalButtonText,
                   ]}
                 >
                   A la maison
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.goalButton,
-                  trainingPlace === "home_with_equipment" && styles.selectedGoalButton,
-                ]}
-                onPress={() => setTrainingPlace("home_with_equipment")}
-              >
-                <FontAwesome5 name="home" size={24} color="#FFF" />
-                <Text
-                  style={[
-                    styles.goalButtonText,
-                    trainingPlace === "home_with_equipment" && styles.selectedGoalButtonText,
-                  ]}
-                >
-                  A la maison avec matériel
                 </Text>
               </TouchableOpacity>
 

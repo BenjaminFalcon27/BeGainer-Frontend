@@ -40,10 +40,37 @@ export default function UserProfile() {
     fetchName();
   }, []);
 
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem("token");
+    await AsyncStorage.removeItem("userId");
+    await AsyncStorage.removeItem("name");
+
+    router.push("/");
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>User Profile</Text>
       <Text style={styles.userName}>{name}</Text>
+
+      <Animated.View
+        style={{
+          opacity: fadeAnim,
+          transform: [{ translateY: translateYAnim }],
+        }}
+      >
+        <Text
+          onPress={handleLogout}
+          style={{
+            color: Colors.dark.tint,
+            fontSize: 18,
+            marginTop: 20,
+            textDecorationLine: "underline",
+          }}
+        >
+          Disconnect
+        </Text>
+      </Animated.View>
     </View>
   );
 }

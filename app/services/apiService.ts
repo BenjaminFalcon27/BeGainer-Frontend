@@ -71,9 +71,6 @@ const handleApiResponse = async <T>(response: Response): Promise<T> => {
       `Erreur API: ${dataJson?.error || response.statusText}`,
       dataJson
     );
-    throw new Error(
-      dataJson?.error || `Erreur lors de la requête (${response.status}).`
-    );
   }
 
   return dataJson as T;
@@ -100,7 +97,27 @@ export const registerUser = async (
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  return handleApiResponse<AuthResponse>(response);
+  const registerData = await handleApiResponse<AuthResponse>(response);
+
+  if (registerData.error) {
+    throw new Error(registerData.error);
+  }
+
+  const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const loginData = await handleApiResponse<AuthResponse>(loginResponse);
+  if (loginData.error) {
+    throw new Error(loginData.error);
+  }
+  return {
+    ...registerData,
+    token: loginData.token,
+    user: loginData.user,
+  };
 };
 
 export const fetchUserPreferences = async (
@@ -134,7 +151,7 @@ export const submitUserPreferences = async (
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`, // Authentification
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(preferences),
   });
