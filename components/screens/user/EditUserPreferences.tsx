@@ -104,7 +104,7 @@ export default function EditPreferencesScreen() {
               weight_kg:
                 fetchedPrefs.weight_kg ||
                 initialEditablePreferencesState.weight_kg,
-              training_days: fetchedPrefs.training_days || [], // Utiliser training_days de fetchedPrefs
+              training_days: fetchedPrefs.training_days || [],
               goal: fetchedPrefs.goal,
               training_place:
                 fetchedPrefs.training_place === "home_with_equipment"
