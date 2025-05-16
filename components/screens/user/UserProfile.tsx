@@ -13,26 +13,22 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
   fetchUserPreferencesDetails,
-  UserPreferencesDetail,
+  UserPreferencesDetail, // Assurez-vous que cette interface contient bien training_days?: number[] (où Lundi=1, etc.)
   UserProgram,
   fetchProgramById,
   ProgramSession,
   fetchSessionsWithExercisesForProgram,
 } from "@/app/services/apiService";
 
-const BackIcon = () => (
-  <MaterialIcons
-    name="arrow-back-ios"
-    size={24}
-    color={Colors.dark.tint}
-    style={{ marginLeft: 10 }}
-  />
-);
+const BackIcon = () => <MaterialIcons name="arrow-back-ios" size={24} color={Colors.dark.tint} style={{ marginLeft: 10 }} />;
 const EditIcon = ({ onPress }: { onPress: () => void }) => (
   <TouchableOpacity onPress={onPress} style={styles.editIconTouchable}>
     <MaterialIcons name="edit" size={22} color={Colors.dark.tint} />
   </TouchableOpacity>
 );
+
+// Les labels des jours, Lundi est à l'index 0, Mardi à l'index 1, etc.
+const DAY_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
 
 export default function UserProfile() {
   const router = useRouter();
@@ -48,18 +44,6 @@ export default function UserProfile() {
     useState<UserPreferencesDetail | null>(null);
   const [activeProgram, setActiveProgram] = useState<UserProgram | null>(null);
   const [programSessions, setProgramSessions] = useState<ProgramSession[]>([]);
-
-  const goalTranslations: { [key: string]: string } = {
-    "lose weight": "Perdre du gras",
-    "gain muscle": "Me muscler",
-    "improve health": "Santé",
-  };
-
-  const trainingPlaceTranslations: { [key: string]: string } = {
-    gym: "Salle de sport",
-    home_no_equipment: "Maison",
-    home_with_equipment: "Maison (avec équipement)",
-  };
 
   useEffect(() => {
     Animated.parallel([
@@ -123,7 +107,7 @@ export default function UserProfile() {
               } else {
                 currentError = `${
                   currentError ? currentError + "\n" : ""
-                }Séances: ${sessionsData}`;
+                }Séances: ${sessionsData.error}`;
                 setProgramSessions([]);
               }
             }
@@ -131,8 +115,8 @@ export default function UserProfile() {
             setActiveProgram(null);
             setProgramSessions([]);
           } else if (prefsData.error) {
-            setActiveProgram(null);
-            setProgramSessions([]);
+             setActiveProgram(null);
+             setProgramSessions([]);
           }
         } else {
           currentError = "Utilisateur non connecté.";
@@ -166,6 +150,36 @@ export default function UserProfile() {
     router.push("/user/edit-preferences");
   };
 
+  // Fonction pour formater l'affichage des jours d'entraînement
+  // Supposant que 'days' contient des nombres où Lundi=1, Mardi=2, ..., Dimanche=7
+  const formatTrainingDays = (days?: number[]): string => {
+    if (!days || days.length === 0) {
+      return "-";
+    }
+    // Trier les jours (1-7) et mapper à l'index du tableau DAY_LABELS (0-6)
+    return days
+      .sort((a, b) => a - b)
+      .map(dayValue => {
+        // Ajuster dayValue (1-7) pour l'index du tableau (0-6)
+        const dayIndex = dayValue - 1;
+        return DAY_LABELS[dayIndex] || '?'; // '?' si dayValue est hors de 1-7
+      })
+      .join(', ');
+  };
+  
+  const goalTranslations: { [key: string]: string } = {
+    "lose weight": "Perdre du gras",
+    "gain muscle": "Me muscler",
+    "improve health": "Santé",
+  };
+
+  const trainingPlaceTranslations: { [key: string]: string } = {
+    "gym": "Salle de sport",
+    "home_no_equipment": "Maison",
+    "home_with_equipment": "Maison (avec équipement)",
+  };
+
+
   if (isLoading) {
     return (
       <View style={styles.centered}>
@@ -197,12 +211,17 @@ export default function UserProfile() {
         </View>
 
         <View style={styles.contentWrapper}>
+          {userName && (
+            <Text style={styles.greetingText}>Bienvenue, {userName} !</Text>
+          )}
+          {userEmail && <Text style={styles.emailText}>Email : {userEmail}</Text>}
+          
           {error && !isLoading && (
             <Text style={styles.errorTextSmall}>{error}</Text>
           )}
 
           {userPreferences && !userPreferences.error ? (
-             <View style={styles.sectionContainer}>
+            <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Vos Préférences</Text>
                 <EditIcon onPress={handleEditPreferences} />
@@ -212,8 +231,8 @@ export default function UserProfile() {
                 {goalTranslations[userPreferences.goal?.toLowerCase() || ""] || userPreferences.goal || "-"}
               </Text>
               <Text style={styles.infoTextCompact}>
-                <Text style={styles.infoLabel}>Fréq.:</Text>{" "}
-                {userPreferences.training_freq || "-"} /sem.
+                <Text style={styles.infoLabel}>Jours d'entr.:</Text>{" "}
+                {formatTrainingDays(userPreferences.training_days)}
               </Text>
               <Text style={styles.infoTextCompact}>
                 <Text style={styles.infoLabel}>Lieu:</Text>{" "}
@@ -228,8 +247,8 @@ export default function UserProfile() {
             !isLoading && (
               <View style={styles.sectionContainer}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Vos Préférences</Text>
-                  <EditIcon onPress={handleEditPreferences} />
+                    <Text style={styles.sectionTitle}>Vos Préférences</Text>
+                    <EditIcon onPress={handleEditPreferences} />
                 </View>
                 <Text style={styles.infoText}>
                   Aucune préférence utilisateur trouvée ou définissable.
@@ -358,9 +377,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.dark.secondary,

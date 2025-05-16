@@ -62,7 +62,7 @@ export default function QuestionnaireStep4() {
       >
         <View style={styles.rowCenter}>
           <View style={styles.col}>
-            <Text style={styles.label}>Quel est votre objectif ?</Text>
+            <Text style={styles.label}>Quel est ton objectif ?</Text>
 
             <View style={styles.buttonGroup}>
               <TouchableOpacity

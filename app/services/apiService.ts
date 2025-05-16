@@ -28,12 +28,12 @@ export interface UserPreferencesPayload {
   age: number | null;
   height_cm: number | null;
   weight_kg: number | null;
-  training_freq: number | null;
+  training_days?: number[]; // AJOUTÉ (ex: [0, 2, 4] pour Lundi, Mercredi, Vendredi)
   goal: string | null;
   training_place: string | null;
   session_length: number | null;
   milestone: string | null;
-  active_program_id?: string | null;
+  active_program_id?: string | null; // Conservez si pertinent pour cette interface
 }
 
 export interface ExerciseDefinition {

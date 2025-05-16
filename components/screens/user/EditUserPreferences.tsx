@@ -18,7 +18,7 @@ import {
   fetchUserPreferencesDetails,
   updateUserPreferences,
   UserPreferencesPayload,
-  UserPreferencesDetail, // Assurez-vous que cette interface est bien celle qui inclut tous les champs
+  UserPreferencesDetail,
 } from "@/app/services/apiService";
 
 const BackIcon = () => (
@@ -30,11 +30,24 @@ const BackIcon = () => (
   />
 );
 
+// Définition des jours de la semaine (identique à QuestionnaireScreen)
+const DAYS_OF_WEEK = [
+  { label: "L", value: 1 }, // Lundi
+  { label: "M", value: 2 }, // Mardi
+  { label: "M", value: 3 }, // Mercredi
+  { label: "J", value: 4 }, // Jeudi
+  { label: "V", value: 5 }, // Vendredi
+  { label: "S", value: 6 }, // Samedi
+  { label: "D", value: 7 }, // Dimanche
+];
+
 // Champs modifiables sur cet écran
 type EditablePreferences = Omit<
   UserPreferencesPayload,
-  "name" | "age" | "milestone" | "user_id" | "gender"
->;
+  "name" | "age" | "milestone" | "user_id" | "gender" 
+> & {
+  training_days?: number[]; // training_days ajouté
+};
 
 type ValidationErrors = {
   [K in keyof EditablePreferences]?: string;
@@ -44,7 +57,7 @@ type ValidationErrors = {
 const initialEditablePreferencesState: EditablePreferences = {
   height_cm: 170,
   weight_kg: 70,
-  training_freq: 3,
+  training_days: [], // Initialisé comme un tableau vide
   goal: null,
   training_place: null,
   session_length: 60,
@@ -58,10 +71,8 @@ export default function EditPreferencesScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
-  // État pour stocker les préférences complètes récupérées initialement
   const [fullInitialPreferences, setFullInitialPreferences] =
     useState<UserPreferencesDetail | null>(null);
-  // État pour les champs modifiables sur cet écran
   const [editablePreferences, setEditablePreferences] =
     useState<EditablePreferences>(initialEditablePreferencesState);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>(
@@ -84,13 +95,8 @@ export default function EditPreferencesScreen() {
           );
           if (fetchedPrefs.error) {
             setApiError(fetchedPrefs.error);
-            // Même en cas d'erreur, on pourrait vouloir initialiser fullInitialPreferences avec ce qu'on a
-            // pour éviter que `handleSubmit` ne bloque si `fullInitialPreferences` est null.
-            // Cependant, cela dépend de si l'ID utilisateur est toujours présent dans fetchedPrefs.error.
-            // Pour l'instant, on le laisse null et handleSubmit gérera le cas.
           } else {
-            setFullInitialPreferences(fetchedPrefs); // Stocker les préférences complètes
-            // Initialiser les champs éditables avec les valeurs récupérées ou les valeurs par défaut
+            setFullInitialPreferences(fetchedPrefs);
             setEditablePreferences({
               height_cm:
                 fetchedPrefs.height_cm ||
@@ -98,9 +104,7 @@ export default function EditPreferencesScreen() {
               weight_kg:
                 fetchedPrefs.weight_kg ||
                 initialEditablePreferencesState.weight_kg,
-              training_freq:
-                fetchedPrefs.training_freq ||
-                initialEditablePreferencesState.training_freq,
+              training_days: fetchedPrefs.training_days || [], // Utiliser training_days de fetchedPrefs
               goal: fetchedPrefs.goal,
               training_place:
                 fetchedPrefs.training_place === "home_with_equipment"
@@ -116,7 +120,7 @@ export default function EditPreferencesScreen() {
         }
       } else {
         setApiError("Utilisateur non authentifié.");
-        router.replace("/"); // Ou une route de connexion
+        router.replace("/");
       }
       setIsLoading(false);
     };
@@ -134,12 +138,26 @@ export default function EditPreferencesScreen() {
   };
 
   const createSelectHandler =
-    (field: keyof EditablePreferences) => (value: string | number | null) => {
+    (field: keyof Pick<EditablePreferences, "goal" | "training_place">) => (value: string | null) => { // Limité aux champs concernés
       setEditablePreferences((prev) => ({ ...prev, [field]: value }));
       if (validationErrors[field]) {
         setValidationErrors((prev) => ({ ...prev, [field]: undefined }));
       }
     };
+
+  const toggleDaySelection = (dayValue: number) => {
+    setEditablePreferences((prev) => {
+      const currentDays = prev.training_days || [];
+      const newSelectedDays = currentDays.includes(dayValue)
+        ? currentDays.filter((d) => d !== dayValue)
+        : [...currentDays, dayValue];
+      return { ...prev, training_days: newSelectedDays.sort((a,b) => a - b) };
+    });
+    if (validationErrors.training_days) {
+      setValidationErrors((prev) => ({ ...prev, training_days: undefined }));
+    }
+  };
+
 
   const validateForm = (): boolean => {
     const errors: ValidationErrors = {};
@@ -158,12 +176,14 @@ export default function EditPreferencesScreen() {
       editablePreferences.weight_kg > 200
     )
       errors.weight_kg = "Poids invalide (30-200 kg).";
-    if (
-      editablePreferences.training_freq === null ||
-      editablePreferences.training_freq < 1 ||
-      editablePreferences.training_freq > 7
-    )
-      errors.training_freq = "Fréquence invalide (1-7).";
+    
+    // Validation pour training_days
+    if (!editablePreferences.training_days || editablePreferences.training_days.length === 0) {
+      errors.training_days = "Veuillez sélectionner au moins un jour d'entraînement.";
+    } else if (editablePreferences.training_days.length > 7) { // Bien que l'UI limite à 7
+        errors.training_days = "Vous ne pouvez pas sélectionner plus de 7 jours.";
+    }
+
     if (
       editablePreferences.session_length === null ||
       editablePreferences.session_length < 30 ||
@@ -182,7 +202,6 @@ export default function EditPreferencesScreen() {
       );
       return;
     }
-    // Vérification cruciale : s'assurer que fullInitialPreferences et userId/token sont chargés
     if (!userId || !token || !fullInitialPreferences) {
       setApiError(
         "Impossible de sauvegarder : les données initiales ou l'identification sont manquantes. Veuillez réessayer."
@@ -197,34 +216,27 @@ export default function EditPreferencesScreen() {
     setIsSubmitting(true);
     setApiError(null);
 
-    // Reconstitution du payload complet pour l'envoi
-    // On prend les valeurs originales pour les champs non modifiables sur cet écran
-    // et les valeurs de 'editablePreferences' pour les autres.
     const payloadForApi: UserPreferencesPayload = {
-      user_id: userId, // L'ID utilisateur doit être inclus
-      name: fullInitialPreferences.name, // Valeur originale non modifiée ici
-      gender: fullInitialPreferences.gender, // Valeur originale non modifiée ici
-      age: fullInitialPreferences.age, // Valeur originale non modifiée ici
-      milestone: fullInitialPreferences.milestone, // Valeur originale non modifiée ici
-
-      // Valeurs de l'écran d'édition actuel
+      user_id: userId,
+      name: fullInitialPreferences.name,
+      gender: fullInitialPreferences.gender,
+      age: fullInitialPreferences.age,
+      milestone: fullInitialPreferences.milestone,
+      
       height_cm: editablePreferences.height_cm,
       weight_kg: editablePreferences.weight_kg,
-      training_freq: editablePreferences.training_freq,
+      training_days: editablePreferences.training_days, // Utilisation de training_days
       goal: editablePreferences.goal,
       training_place: editablePreferences.training_place,
       session_length: editablePreferences.session_length,
     };
 
     try {
-      // La fonction updateUserPreferences attend Partial<UserPreferencesPayload>,
-      // envoyer le payload complet est compatible.
       const result = await updateUserPreferences(userId, payloadForApi, token);
       if (result.error) {
         setApiError(result.error);
         Alert.alert("Échec de la mise à jour", `${result.error}`);
       } else {
-        // Succès : pas d'alerte, redirection directe
         router.back();
       }
     } catch (e: any) {
@@ -252,9 +264,8 @@ export default function EditPreferencesScreen() {
 
   const goalHandler = createSelectHandler("goal");
   const trainingPlaceHandler = createSelectHandler("training_place");
-  const trainingFreqHandler = createSelectHandler("training_freq");
+  // trainingFreqHandler n'est plus nécessaire
 
-  // Le JSX reste le même, utilisant `editablePreferences` pour les valeurs des champs
   return (
     <View style={styles.mainContainer}>
       <View style={styles.headerBar}>
@@ -401,39 +412,37 @@ export default function EditPreferencesScreen() {
           )}
         </View>
 
+        {/* Nouvelle section pour les jours d'entraînement */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>
-            Fréquence d'entraînement (séances/semaine)
-          </Text>
-          <View style={styles.freqButtonGroup}>
-            {[1, 2, 3, 4, 5, 6, 7].map((freq) => (
+          <Text style={styles.label}>Jours d'entraînement souhaités</Text>
+          <View style={styles.daysContainer}>
+            {DAYS_OF_WEEK.map((day) => (
               <TouchableOpacity
-                key={freq}
+                key={day.value}
                 style={[
-                  styles.freqButton,
-                  editablePreferences.training_freq === freq &&
-                    styles.selectedFreqButton,
+                  styles.dayButton,
+                  (editablePreferences.training_days || []).includes(day.value) && styles.selectedDayButton,
                 ]}
-                onPress={() => trainingFreqHandler(freq)}
+                onPress={() => toggleDaySelection(day.value)}
               >
                 <Text
                   style={[
-                    styles.freqButtonText,
-                    editablePreferences.training_freq === freq &&
-                      styles.selectedFreqButtonText,
+                    styles.dayButtonText,
+                    (editablePreferences.training_days || []).includes(day.value) && styles.selectedDayButtonText,
                   ]}
                 >
-                  {freq}
+                  {day.label}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
-          {validationErrors.training_freq && (
+          {validationErrors.training_days && (
             <Text style={styles.errorText}>
-              {validationErrors.training_freq}
+              {validationErrors.training_days}
             </Text>
           )}
         </View>
+
 
         <View style={styles.formGroup}>
           <Text style={styles.label}>Lieu d'entraînement</Text>
@@ -526,7 +535,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dark.background,
     paddingTop: 40,
     paddingHorizontal: 20,
-    paddingBottom: 15, // Réduit pour le bouton
+    paddingBottom: 15,
   },
   formContent: {
     flex: 1,
@@ -579,13 +588,13 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     color: Colors.dark.text,
-    marginBottom: 6,
+    marginBottom: 8, // Augmenté légèrement pour les jours
     fontWeight: "600",
   },
   errorText: {
     color: "#FF8E8E",
     fontSize: 12,
-    marginTop: 3,
+    marginTop: 4, // Augmenté légèrement
   },
   buttonGroup: {
     flexDirection: "row",
@@ -650,43 +659,48 @@ const styles = StyleSheet.create({
     height: 30,
     marginVertical: 0,
   },
-  freqButtonGroup: {
+  // Styles pour la sélection des jours (inspirés de QuestionnaireScreen)
+  daysContainer: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-between", // Ou space-around
     alignItems: "center",
-    flexWrap: "nowrap",
-    marginVertical: 5,
+    marginTop: 5, // Réduit
+    // marginBottom: 10, // Réduit si nécessaire
   },
-  freqButton: {
-    backgroundColor: Colors.dark.card,
-    borderRadius: 18,
+  dayButton: {
+    paddingVertical: 8, // Réduit
+    paddingHorizontal: 10, // Réduit
+    borderRadius: 18, // Réduit pour des boutons plus petits
     borderWidth: 1,
     borderColor: Colors.dark.secondary,
-    width: 36,
-    height: 36,
-    justifyContent: "center",
-    alignItems: "center",
-    marginHorizontal: 2,
+    backgroundColor: Colors.dark.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 36, // Réduit
+    height: 36, // Réduit
+    marginHorizontal: 2, // Léger espacement
   },
-  selectedFreqButton: {
-    backgroundColor: Colors.dark.tint,
-    borderColor: Colors.dark.tint,
+  selectedDayButton: {
+    backgroundColor: Colors.dark.primary,
+    borderColor: Colors.dark.primary,
   },
-  freqButtonText: {
+  dayButtonText: {
     color: Colors.dark.text,
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 14, // Réduit
+    // fontFamily: "BarlowLight", // Assurez-vous que cette police est chargée
   },
-  selectedFreqButtonText: {
+  selectedDayButtonText: {
     color: Colors.dark.background,
+    fontWeight: 'bold',
   },
+  // Fin des styles pour la sélection des jours
   button: {
     backgroundColor: Colors.dark.tint,
     paddingVertical: 12,
     borderRadius: 6,
     alignItems: "center",
-    marginTop: 15, // Assure qu'il y a de l'espace au-dessus
-    marginBottom: 5, // Espace en bas si la vue principale a un paddingBottom
+    marginTop: 20, // Augmenté pour plus d'espace avant le bouton
+    marginBottom: 5,
   },
   buttonDisabled: {
     backgroundColor: Colors.dark.secondary,
