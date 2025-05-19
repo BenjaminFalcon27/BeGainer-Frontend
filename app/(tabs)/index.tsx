@@ -6,7 +6,7 @@ import React, { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "react-native/Libraries/NewAppScreen";
 import { useRouter } from "expo-router";
-import { fetchUserPreferences } from "../services/apiService";
+import { fetchUserPreferences } from "../../components/services/apiService";
 import DashboardScreen from "@/components/screens/dashboard/DashboardScreen";
 
 export default function HomeScreen() {

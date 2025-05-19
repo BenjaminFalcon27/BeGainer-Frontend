@@ -18,7 +18,7 @@ import {
   loginUser,
   registerUser,
   fetchUserPreferences,
-} from "@/app/services/apiService";
+} from "@/components/services/apiService";
 
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -34,7 +34,7 @@ export default function AuthScreen() {
   };
 
   const validatePassword = (password: string) => {
-  const regex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+    const regex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
     return regex.test(password);
   };
 

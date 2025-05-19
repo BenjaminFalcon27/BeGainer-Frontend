@@ -14,7 +14,10 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { submitUserPreferences, UserPreferencesPayload } from "@/app/services/apiService"; // UserPreferencesPayload importé
+import {
+  submitUserPreferences,
+  UserPreferencesPayload,
+} from "@/components/services/apiService"; // UserPreferencesPayload importé
 
 // Définition des jours de la semaine
 const DAYS_OF_WEEK = [
@@ -90,7 +93,6 @@ export default function QuestionnaireScreen() {
       const height_cm = heightString ? parseInt(heightString, 10) : null;
       const weight_kg = weightString ? parseInt(weightString, 10) : null;
 
-
       const params: UserPreferencesPayload = {
         user_id: userId,
         name: name,
@@ -98,7 +100,7 @@ export default function QuestionnaireScreen() {
         age: age,
         height_cm: height_cm,
         weight_kg: weight_kg,
-        training_days: selectedDays.sort((a,b) => a - b), // Envoi des jours sélectionnés, triés
+        training_days: selectedDays.sort((a, b) => a - b), // Envoi des jours sélectionnés, triés
         goal: goal,
         training_place: training_place,
         session_length: duration,
@@ -152,7 +154,9 @@ export default function QuestionnaireScreen() {
         </View>
 
         <View style={styles.questionBlock}>
-          <Text style={styles.label}>Quels jours souhaitez-vous vous entraîner ?</Text>
+          <Text style={styles.label}>
+            Quels jours souhaitez-vous vous entraîner ?
+          </Text>
           <View style={styles.daysContainer}>
             {DAYS_OF_WEEK.map((day) => (
               <TouchableOpacity
@@ -166,7 +170,8 @@ export default function QuestionnaireScreen() {
                 <Text
                   style={[
                     styles.dayButtonText,
-                    selectedDays.includes(day.value) && styles.selectedDayButtonText,
+                    selectedDays.includes(day.value) &&
+                      styles.selectedDayButtonText,
                   ]}
                 >
                   {day.label}
@@ -175,7 +180,6 @@ export default function QuestionnaireScreen() {
             ))}
           </View>
         </View>
-
       </Animated.View>
       <TouchableOpacity style={styles.nextButton} onPress={handleSubmit}>
         <Text style={styles.nextButtonText}>Valider mes choix</Text>
@@ -203,11 +207,11 @@ const styles = StyleSheet.create({
   formContainer: {
     width: "100%",
     flex: 1, // Permet au contenu de prendre l'espace disponible
-    justifyContent: 'center', // Centrer les questions verticalement
+    justifyContent: "center", // Centrer les questions verticalement
   },
   questionBlock: {
     marginBottom: 40, // Espace entre les questions
-    width: '100%',
+    width: "100%",
   },
   label: {
     color: Colors.dark.text,
@@ -216,7 +220,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 20, // Espace entre le label et le contrôle
   },
-  valueText: { // Style pour afficher la valeur du slider
+  valueText: {
+    // Style pour afficher la valeur du slider
     fontFamily: "BarlowLight",
     color: Colors.dark.text,
     fontSize: 18,
@@ -241,8 +246,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.dark.secondary,
     backgroundColor: Colors.dark.card,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     minWidth: 40, // Assurer une taille minimale
     height: 40,
   },
@@ -257,7 +262,7 @@ const styles = StyleSheet.create({
   },
   selectedDayButtonText: {
     color: Colors.dark.background, // Ou une couleur contrastante sur le fond primary
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   nextButton: {
     backgroundColor: Colors.dark.primary,

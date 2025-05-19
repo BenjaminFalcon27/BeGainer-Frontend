@@ -19,7 +19,7 @@ import {
   updateUserPreferences,
   UserPreferencesPayload,
   UserPreferencesDetail,
-} from "@/app/services/apiService";
+} from "@/components/services/apiService";
 
 const BackIcon = () => (
   <MaterialIcons
@@ -44,7 +44,7 @@ const DAYS_OF_WEEK = [
 // Champs modifiables sur cet écran
 type EditablePreferences = Omit<
   UserPreferencesPayload,
-  "name" | "age" | "milestone" | "user_id" | "gender" 
+  "name" | "age" | "milestone" | "user_id" | "gender"
 > & {
   training_days?: number[]; // training_days ajouté
 };
@@ -138,7 +138,9 @@ export default function EditPreferencesScreen() {
   };
 
   const createSelectHandler =
-    (field: keyof Pick<EditablePreferences, "goal" | "training_place">) => (value: string | null) => { // Limité aux champs concernés
+    (field: keyof Pick<EditablePreferences, "goal" | "training_place">) =>
+    (value: string | null) => {
+      // Limité aux champs concernés
       setEditablePreferences((prev) => ({ ...prev, [field]: value }));
       if (validationErrors[field]) {
         setValidationErrors((prev) => ({ ...prev, [field]: undefined }));
@@ -151,13 +153,12 @@ export default function EditPreferencesScreen() {
       const newSelectedDays = currentDays.includes(dayValue)
         ? currentDays.filter((d) => d !== dayValue)
         : [...currentDays, dayValue];
-      return { ...prev, training_days: newSelectedDays.sort((a,b) => a - b) };
+      return { ...prev, training_days: newSelectedDays.sort((a, b) => a - b) };
     });
     if (validationErrors.training_days) {
       setValidationErrors((prev) => ({ ...prev, training_days: undefined }));
     }
   };
-
 
   const validateForm = (): boolean => {
     const errors: ValidationErrors = {};
@@ -176,12 +177,17 @@ export default function EditPreferencesScreen() {
       editablePreferences.weight_kg > 200
     )
       errors.weight_kg = "Poids invalide (30-200 kg).";
-    
+
     // Validation pour training_days
-    if (!editablePreferences.training_days || editablePreferences.training_days.length === 0) {
-      errors.training_days = "Veuillez sélectionner au moins un jour d'entraînement.";
-    } else if (editablePreferences.training_days.length > 7) { // Bien que l'UI limite à 7
-        errors.training_days = "Vous ne pouvez pas sélectionner plus de 7 jours.";
+    if (
+      !editablePreferences.training_days ||
+      editablePreferences.training_days.length === 0
+    ) {
+      errors.training_days =
+        "Veuillez sélectionner au moins un jour d'entraînement.";
+    } else if (editablePreferences.training_days.length > 7) {
+      // Bien que l'UI limite à 7
+      errors.training_days = "Vous ne pouvez pas sélectionner plus de 7 jours.";
     }
 
     if (
@@ -222,7 +228,7 @@ export default function EditPreferencesScreen() {
       gender: fullInitialPreferences.gender,
       age: fullInitialPreferences.age,
       milestone: fullInitialPreferences.milestone,
-      
+
       height_cm: editablePreferences.height_cm,
       weight_kg: editablePreferences.weight_kg,
       training_days: editablePreferences.training_days, // Utilisation de training_days
@@ -421,14 +427,18 @@ export default function EditPreferencesScreen() {
                 key={day.value}
                 style={[
                   styles.dayButton,
-                  (editablePreferences.training_days || []).includes(day.value) && styles.selectedDayButton,
+                  (editablePreferences.training_days || []).includes(
+                    day.value
+                  ) && styles.selectedDayButton,
                 ]}
                 onPress={() => toggleDaySelection(day.value)}
               >
                 <Text
                   style={[
                     styles.dayButtonText,
-                    (editablePreferences.training_days || []).includes(day.value) && styles.selectedDayButtonText,
+                    (editablePreferences.training_days || []).includes(
+                      day.value
+                    ) && styles.selectedDayButtonText,
                   ]}
                 >
                   {day.label}
@@ -442,7 +452,6 @@ export default function EditPreferencesScreen() {
             </Text>
           )}
         </View>
-
 
         <View style={styles.formGroup}>
           <Text style={styles.label}>Lieu d'entraînement</Text>
@@ -674,8 +683,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.dark.secondary,
     backgroundColor: Colors.dark.card,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     minWidth: 36, // Réduit
     height: 36, // Réduit
     marginHorizontal: 2, // Léger espacement
@@ -691,7 +700,7 @@ const styles = StyleSheet.create({
   },
   selectedDayButtonText: {
     color: Colors.dark.background,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   // Fin des styles pour la sélection des jours
   button: {
