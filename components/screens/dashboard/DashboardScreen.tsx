@@ -6,18 +6,17 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Animated,
-  Alert, 
+  Alert,
   ScrollView,
-  Modal, 
+  Modal,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "@/constants/Colors";
-import LottieView from "lottie-react-native"; // Import LottieView
+import LottieView from "lottie-react-native";
 import {
   UserPreferencesDetail,
-  UserProgram,
   ProgramSession as ApiProgramSession,
   fetchUserPreferencesDetails,
   fetchProgramById,
@@ -28,9 +27,20 @@ import {
   deleteProgram,
 } from "@/components/services/apiService";
 
+// Define UserProgram locally to include start_date
+export interface UserProgram {
+  id: string;
+  user_id: string;
+  name: string;
+  goal: string;
+  duration_weeks: number;
+  start_date?: string;
+  error?: string;
+}
+
 // Extend ProgramSession locally
 interface ProgramSession extends ApiProgramSession {
-  day_number: number; 
+  day_number: number;
   exercise_count: number;
 }
 
@@ -41,19 +51,32 @@ interface SimpleProgramGenerationResponse {
 }
 
 const FRENCH_DAYS = [
-  "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche",
+  "Lundi",
+  "Mardi",
+  "Mercredi",
+  "Jeudi",
+  "Vendredi",
+  "Samedi",
+  "Dimanche",
 ];
 
 const ProfileIcon = () => (
   <MaterialIcons name="account-circle" size={28} color={Colors.dark.tint} />
 );
 
+// Helper function to get current day of the week (1 for Monday, 7 for Sunday)
+const getCurrentDayOfWeek = () => {
+  const today = new Date();
+  const day = today.getDay(); // Sunday is 0, Monday is 1, ..., Saturday is 6
+  return day === 0 ? 7 : day; // Adjust Sunday to be 7
+};
+
 export default function DashboardScreen() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const [isLoading, setIsLoading] = useState(true); // For initial data load
-  const [isGeneratingProgram, setIsGeneratingProgram] = useState(false); // Controls Lottie for program generation
+  const [isLoading, setIsLoading] = useState(true);
+  const [isGeneratingProgram, setIsGeneratingProgram] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -63,7 +86,46 @@ export default function DashboardScreen() {
   const [activeProgram, setActiveProgram] = useState<UserProgram | null>(null);
   const [programSessions, setProgramSessions] = useState<ProgramSession[]>([]);
 
-  const [isConfirmationVisible, setIsConfirmationVisible] = useState(false);
+  const [isConfirmationVisible, setIsConfirmationVisible] = useState(false); // For program generation
+  const [showSessionEndedModal, setShowSessionEndedModal] = useState(false);
+  const [sessionEndedInfo, setSessionEndedInfo] = useState({
+    name: "",
+    time: "",
+  });
+  const params = useLocalSearchParams<{
+    sessionJustEnded?: string;
+    sessionTime?: string;
+    sessionName?: string;
+  }>();
+
+  // State for off-day session confirmation
+  const [showOffDaySessionConfirmModal, setShowOffDaySessionConfirmModal] =
+    useState(false);
+  const [selectedOffDaySession, setSelectedOffDaySession] = useState<{
+    id: string;
+    name?: string;
+    message: string;
+  } | null>(null);
+
+  const currentDayOfWeek = getCurrentDayOfWeek();
+
+  useEffect(() => {
+    if (
+      params?.sessionJustEnded === "true" &&
+      params?.sessionTime &&
+      params?.sessionName
+    ) {
+      setSessionEndedInfo({
+        name: params.sessionName,
+        time: params.sessionTime,
+      });
+      setShowSessionEndedModal(true);
+      const timer = setTimeout(() => {
+        setShowSessionEndedModal(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [params]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -86,7 +148,10 @@ export default function DashboardScreen() {
           setUserId(storedUserId);
           setToken(storedToken);
 
-          const prefsData = await fetchUserPreferencesDetails(storedUserId, storedToken);
+          const prefsData = await fetchUserPreferencesDetails(
+            storedUserId,
+            storedToken
+          );
           if (prefsData.error) {
             currentError = `Erreur Préférences: ${prefsData.error}`;
             setUserPreferences(null);
@@ -95,21 +160,31 @@ export default function DashboardScreen() {
           }
 
           if (!prefsData.error && prefsData.active_program_id) {
-            const programData = await fetchProgramById(prefsData.active_program_id, storedToken);
+            const programData = (await fetchProgramById(
+              prefsData.active_program_id,
+              storedToken
+            )) as UserProgram;
             if (programData.error) {
-              currentError = `${currentError ? currentError + "\n" : ""}Erreur Programme: ${programData.error}`;
+              currentError = `${
+                currentError ? currentError + "\n" : ""
+              }Erreur Programme: ${programData.error}`;
               setActiveProgram(null);
               setProgramSessions([]);
             } else {
               setActiveProgram(programData);
-              const sessionsData = await fetchSessionsWithExercisesForProgram(programData.id, storedToken);
+              const sessionsData = await fetchSessionsWithExercisesForProgram(
+                programData.id,
+                storedToken
+              );
               if (Array.isArray(sessionsData)) {
                 const sortedSessions = (sessionsData as ProgramSession[]).sort(
                   (a, b) => (a.day_number || 0) - (b.day_number || 0)
                 );
                 setProgramSessions(sortedSessions);
               } else {
-                currentError = `${currentError ? currentError + "\n" : ""}Erreur Séances: ${(sessionsData as { error: string }).error}`;
+                currentError = `${
+                  currentError ? currentError + "\n" : ""
+                }Erreur Séances: ${(sessionsData as { error: string }).error}`;
                 setProgramSessions([]);
               }
             }
@@ -125,7 +200,8 @@ export default function DashboardScreen() {
           router.replace("/");
         }
       } catch (e: any) {
-        currentError = e.message || "Une erreur inattendue est survenue lors du chargement.";
+        currentError =
+          e.message || "Une erreur inattendue est survenue lors du chargement.";
       } finally {
         setError(currentError);
         setIsLoading(false);
@@ -138,16 +214,59 @@ export default function DashboardScreen() {
     router.push("/user/profile");
   };
 
-  const handleSessionPress = (sessionId: string, sessionName?: string) => {
+  const navigateToSessionDetails = (
+    sessionId: string,
+    sessionName?: string
+  ) => {
     router.push({
       pathname: "/sessions/session-details",
-      params: { id: sessionId, sessionName: sessionName || "Détails de la séance" },
+      params: {
+        id: sessionId,
+        sessionName: sessionName || "Détails de la séance",
+      },
     });
+  };
+
+  const triggerSessionPress = (session: ProgramSession) => {
+    if (session.day_number < currentDayOfWeek) {
+      setSelectedOffDaySession({
+        id: session.id,
+        name: session.name,
+        message:
+          "Cette séance était prévue un jour précédent. Voulez-vous vraiment la faire maintenant ?",
+      });
+      setShowOffDaySessionConfirmModal(true);
+    } else if (session.day_number > currentDayOfWeek) {
+      setSelectedOffDaySession({
+        id: session.id,
+        name: session.name,
+        message:
+          "Cette séance est prévue pour un jour ultérieur. Voulez-vous vraiment la faire maintenant ?",
+      });
+      setShowOffDaySessionConfirmModal(true);
+    } else {
+      // Session is for the current day
+      navigateToSessionDetails(session.id, session.name);
+    }
+  };
+
+  const confirmOffDaySession = () => {
+    if (selectedOffDaySession) {
+      navigateToSessionDetails(
+        selectedOffDaySession.id,
+        selectedOffDaySession.name
+      );
+    }
+    setShowOffDaySessionConfirmModal(false);
+    setSelectedOffDaySession(null);
   };
 
   const triggerProgramGeneration = () => {
     if (!userId || !token) {
-      Alert.alert("Erreur", "Impossible de récupérer les informations utilisateur.");
+      Alert.alert(
+        "Erreur",
+        "Impossible de récupérer les informations utilisateur."
+      );
       return;
     }
     if (!userPreferences || userPreferences.error || !userPreferences.user_id) {
@@ -163,20 +282,19 @@ export default function DashboardScreen() {
 
   const confirmAndGenerateProgram = async () => {
     setIsConfirmationVisible(false);
-    setIsGeneratingProgram(true); // Show Lottie animation
+    setIsGeneratingProgram(true);
     setError(null);
     let accumulatedErrorMessages = "";
 
     if (!userId || !token || !userPreferences) {
-        setError("Données utilisateur critiques manquantes.");
-        setIsGeneratingProgram(false); // Hide Lottie
-        return;
+      setError("Données utilisateur critiques manquantes.");
+      setIsGeneratingProgram(false);
+      return;
     }
 
     try {
       const oldProgramId = userPreferences.active_program_id;
       if (oldProgramId) {
-        console.log(`Tableau de bord: Tentative de suppression de l'ancien programme actif: ${oldProgramId}`);
         const deleteResponse = await deleteProgram(oldProgramId, token);
         if (deleteResponse.error) {
           const deleteErrorMessage = `Échec de la suppression de l'ancien programme (ID: ${oldProgramId}): ${deleteResponse.error}. La génération du nouveau programme va continuer.`;
@@ -184,8 +302,12 @@ export default function DashboardScreen() {
           Alert.alert("Attention", deleteErrorMessage);
           accumulatedErrorMessages += deleteErrorMessage + "\n";
         } else {
-          console.log(`Tableau de bord: Ancien programme ${oldProgramId} supprimé avec succès.`);
-          setUserPreferences(prev => prev ? { ...prev, active_program_id: undefined } : null);
+          console.log(
+            `Tableau de bord: Ancien programme ${oldProgramId} supprimé avec succès.`
+          );
+          setUserPreferences((prev) =>
+            prev ? { ...prev, active_program_id: undefined } : null
+          );
           if (activeProgram && activeProgram.id === oldProgramId) {
             setActiveProgram(null);
             setProgramSessions([]);
@@ -193,38 +315,56 @@ export default function DashboardScreen() {
         }
       }
 
-      const genResponse: SimpleProgramGenerationResponse = await autoGenerateNewProgram(userId, token);
+      const genResponse: SimpleProgramGenerationResponse =
+        await autoGenerateNewProgram(userId, token);
 
       if (genResponse.error || !genResponse.program_id) {
-        const errorMessage = genResponse.error || "ID de programme manquant dans la réponse de génération.";
+        const errorMessage =
+          genResponse.error ||
+          "ID de programme manquant dans la réponse de génération.";
         Alert.alert("Échec de la génération", errorMessage);
         accumulatedErrorMessages += `Échec de la génération: ${errorMessage}\n`;
         setError(accumulatedErrorMessages || errorMessage);
       } else {
         const newProgramId = genResponse.program_id;
-        const currentPrefsForUpdate: UserPreferencesPayload = { 
-            ...userPreferences, 
-            user_id: userId, 
+        const currentPrefsForUpdate: UserPreferencesPayload = {
+          ...userPreferences,
+          user_id: userId,
         };
-        
-        const updatedPrefsResponse = await updateUserActiveProgram(userId, currentPrefsForUpdate, newProgramId, token);
+
+        const updatedPrefsResponse = await updateUserActiveProgram(
+          userId,
+          currentPrefsForUpdate,
+          newProgramId,
+          token
+        );
 
         if (updatedPrefsResponse.error) {
           const updateErrorMessage = `Le programme a été généré (ID: ${newProgramId}) mais n'a pas pu être défini comme actif: ${updatedPrefsResponse.error}`;
           Alert.alert("Erreur de mise à jour", updateErrorMessage);
           accumulatedErrorMessages += updateErrorMessage + "\n";
         } else {
-          if ("user_id" in updatedPrefsResponse && typeof updatedPrefsResponse.user_id === "string") {
+          if (
+            "user_id" in updatedPrefsResponse &&
+            typeof updatedPrefsResponse.user_id === "string"
+          ) {
             setUserPreferences(updatedPrefsResponse as UserPreferencesDetail);
           } else {
-            const unexpectedFormatError = "La réponse de mise à jour des préférences n'était pas au format attendu.";
+            const unexpectedFormatError =
+              "La réponse de mise à jour des préférences n'était pas au format attendu.";
             console.error(unexpectedFormatError, updatedPrefsResponse);
             accumulatedErrorMessages += unexpectedFormatError + "\n";
           }
-          console.log(genResponse.message || "Nouveau programme généré et défini comme actif !");
+          console.log(
+            genResponse.message ||
+              "Nouveau programme généré et défini comme actif !"
+          );
         }
 
-        const programDetails = await fetchProgramById(newProgramId, token);
+        const programDetails = (await fetchProgramById(
+          newProgramId,
+          token
+        )) as UserProgram;
         if (programDetails.error) {
           const detailsErrorMessage = `Impossible de récupérer les détails du nouveau programme (ID: ${newProgramId}): ${programDetails.error}`;
           Alert.alert("Erreur de chargement", detailsErrorMessage);
@@ -233,14 +373,19 @@ export default function DashboardScreen() {
           setProgramSessions([]);
         } else {
           setActiveProgram(programDetails);
-          const sessionsData = await fetchSessionsWithExercisesForProgram(newProgramId, token);
+          const sessionsData = await fetchSessionsWithExercisesForProgram(
+            newProgramId,
+            token
+          );
           if (Array.isArray(sessionsData)) {
             const sortedSessions = (sessionsData as ProgramSession[]).sort(
               (a, b) => (a.day_number || 0) - (b.day_number || 0)
             );
             setProgramSessions(sortedSessions);
           } else {
-            const sessionsErrorMessage = `Impossible de charger les séances du nouveau programme: ${(sessionsData as { error: string }).error}`;
+            const sessionsErrorMessage = `Impossible de charger les séances du nouveau programme: ${
+              (sessionsData as { error: string }).error
+            }`;
             Alert.alert("Erreur Séances", sessionsErrorMessage);
             accumulatedErrorMessages += sessionsErrorMessage + "\n";
             setProgramSessions([]);
@@ -251,15 +396,31 @@ export default function DashboardScreen() {
         }
       }
     } catch (e: any) {
-      const catchErrorMessage = e.message || "Une erreur de communication est survenue lors de la génération du programme.";
+      const catchErrorMessage =
+        e.message ||
+        "Une erreur de communication est survenue lors de la génération du programme.";
       Alert.alert("Erreur Inattendue", catchErrorMessage);
-      setError(prevError => (prevError ? prevError + "\n" : "") + catchErrorMessage);
+      setError(
+        (prevError) => (prevError ? prevError + "\n" : "") + catchErrorMessage
+      );
     } finally {
-      setIsGeneratingProgram(false); // Hide Lottie animation
+      setIsGeneratingProgram(false);
     }
   };
 
-  // Initial loading display
+  const isProgramOld = () => {
+    if (activeProgram && activeProgram.start_date) {
+      const startDate = new Date(activeProgram.start_date);
+      const currentDate = new Date();
+      const sixWeeksInMs = 6 * 7 * 24 * 60 * 60 * 1000;
+      if (!isNaN(startDate.getTime())) {
+        return currentDate.getTime() - startDate.getTime() > sixWeeksInMs;
+      }
+    }
+    return false;
+  };
+  const programIsOlderThanSixWeeks = isProgramOld();
+
   if (isLoading && !userPreferences && !activeProgram) {
     return (
       <View style={styles.centered}>
@@ -270,113 +431,222 @@ export default function DashboardScreen() {
   }
 
   const showNoActiveProgramMessage =
-    !activeProgram && userPreferences && !userPreferences.error && !userPreferences.active_program_id;
+    !activeProgram &&
+    userPreferences &&
+    !userPreferences.error &&
+    !userPreferences.active_program_id;
 
   return (
     <View style={styles.mainContainer}>
       <Animated.View style={{ opacity: fadeAnim, width: "100%", flex: 1 }}>
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Tableau de Bord</Text>
-          <TouchableOpacity onPress={navigateToProfile} style={styles.profileButton}>
+          <TouchableOpacity
+            onPress={navigateToProfile}
+            style={styles.profileButton}
+          >
             <ProfileIcon />
           </TouchableOpacity>
         </View>
 
-        {/* Welcome Message */}
         {userName && (
           <Text style={styles.welcomeMessage}>Bonjour, {userName} !</Text>
         )}
 
-        {/* Error Display - only show if not loading/generating */}
         {error && !isLoading && !isGeneratingProgram && (
           <Text style={styles.errorText}>{error}</Text>
         )}
-        
-        {/* Scrollable Content Area */}
-        <ScrollView style={styles.contentScrollView} contentContainerStyle={styles.scrollViewContentContainer}>
-            {/* No Active Program Section */}
-            {showNoActiveProgramMessage && !isLoading && (
+
+        <ScrollView
+          style={styles.contentScrollView}
+          contentContainerStyle={styles.scrollViewContentContainer}
+        >
+          {showNoActiveProgramMessage && !isLoading && (
             <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Aucun Programme Actif</Text>
-                <Text style={styles.infoText}>
+              <Text style={styles.sectionTitle}>Aucun Programme Actif</Text>
+              <Text style={styles.infoText}>
                 Vous n'avez pas encore de programme d'entraînement actif.
-                </Text>
-                <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: Colors.dark.primary }, isGeneratingProgram && styles.buttonDisabled]}
-                onPress={triggerProgramGeneration} 
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: Colors.dark.primary },
+                  isGeneratingProgram && styles.buttonDisabled,
+                ]}
+                onPress={triggerProgramGeneration}
                 disabled={isGeneratingProgram}
-                >
-                  {/* Text is shown, Lottie modal will cover if isGeneratingProgram is true */}
-                  <Text style={styles.actionButtonText}>Générer un programme</Text>
-                </TouchableOpacity>
+              >
+                <Text style={styles.actionButtonText}>
+                  Générer un programme
+                </Text>
+              </TouchableOpacity>
             </View>
-            )}
+          )}
 
-            {/* Active Program Section */}
-            {activeProgram && !activeProgram.error && (
+          {activeProgram && !activeProgram.error && (
             <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Votre Programme Actif</Text>
-                <Text style={styles.programName}>{activeProgram.name}</Text>
-                <View style={styles.programDetails}>
-                <Text style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Objectif:</Text> {activeProgram.goal}
-                </Text>
-                <Text style={styles.detailText}>
-                    <Text style={styles.detailLabel}>Durée:</Text> {activeProgram.duration_weeks} semaines
-                </Text>
-                </View>
-                <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: Colors.dark.secondary, marginTop: 15 }, isGeneratingProgram && styles.buttonDisabled]}
-                    onPress={triggerProgramGeneration} 
+              {programIsOlderThanSixWeeks ? (
+                <>
+                  <Text style={styles.sectionTitleWarning}>
+                    Programme à renouveler
+                  </Text>
+                  <Text style={styles.oldProgramMessage}>
+                    Votre programme "{activeProgram.name}" a commencé il y a
+                    plus de 6 semaines. Pour de meilleurs résultats et continuer
+                    à progresser, il est recommandé de le renouveler.
+                  </Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      { backgroundColor: Colors.dark.primary, marginTop: 20 },
+                      isGeneratingProgram && styles.buttonDisabled,
+                    ]}
+                    onPress={triggerProgramGeneration}
                     disabled={isGeneratingProgram}
-                >
-                    <Text style={styles.actionButtonText}>Générer un Nouveau Programme</Text>
-                </TouchableOpacity>
+                  >
+                    <Text style={styles.actionButtonText}>
+                      Régénérer mon Programme
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.sectionTitle}>Votre Programme Actif</Text>
+                  <Text style={styles.programName}>{activeProgram.name}</Text>
+                  <View style={styles.programDetails}>
+                    <Text style={styles.detailText}>
+                      <Text style={styles.detailLabel}>Objectif:</Text>{" "}
+                      {activeProgram.goal === "lose weight"
+                        ? "Perte de poids"
+                        : activeProgram.goal === "gain muscle"
+                        ? "Prise de masse"
+                        : activeProgram.goal === "improve health"
+                        ? "Amélioration de la santé"
+                        : activeProgram.goal}
+                    </Text>
+                    <Text style={styles.detailText}>
+                      <Text style={styles.detailLabel}>Durée:</Text>{" "}
+                      {activeProgram.duration_weeks} semaines
+                    </Text>
+                    {activeProgram.start_date && (
+                      <Text style={styles.detailText}>
+                        <Text style={styles.detailLabel}>Débuté le:</Text>{" "}
+                        {new Date(activeProgram.start_date).toLocaleDateString(
+                          "fr-FR"
+                        )}
+                      </Text>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      { backgroundColor: Colors.dark.secondary, marginTop: 15 },
+                      isGeneratingProgram && styles.buttonDisabled,
+                    ]}
+                    onPress={triggerProgramGeneration}
+                    disabled={isGeneratingProgram}
+                  >
+                    <Text style={styles.actionButtonText}>
+                      Générer un Nouveau Programme
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
-            )}
+          )}
 
-            {/* Sessions List Section */}
-            {activeProgram && !activeProgram.error && programSessions.length > 0 && (
-            <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Vos Séances ({programSessions.length})</Text>
+          {activeProgram &&
+            !activeProgram.error &&
+            !programIsOlderThanSixWeeks &&
+            programSessions.length > 0 && (
+              <View style={styles.sectionContainer}>
+                <Text style={styles.sectionTitle}>
+                  Vos Séances ({programSessions.length})
+                </Text>
                 {programSessions.map((session) => {
-                const exerciseCount = session.exercise_count || (session.exercises && session.exercises.length) || 0;
-                const dayNumber = session.day_number; 
-                const dayName = (dayNumber >= 1 && dayNumber <= 7) ? FRENCH_DAYS[dayNumber - 1] : `Jour ${dayNumber}`;
+                  const exerciseCount =
+                    session.exercise_count ||
+                    (session.exercises && session.exercises.length) ||
+                    0;
+                  const dayNumber = session.day_number;
+                  const dayName =
+                    dayNumber >= 1 && dayNumber <= 7
+                      ? FRENCH_DAYS[dayNumber - 1]
+                      : `Jour ${dayNumber}`;
+                  const isPastSessionInWeek = dayNumber < currentDayOfWeek;
+                  const isFutureSessionInWeek = dayNumber > currentDayOfWeek;
+                  const isCurrentDaySession = dayNumber === currentDayOfWeek;
 
-                return (
+                  return (
                     <TouchableOpacity
-                    key={session.id}
-                    style={styles.sessionItem}
-                    onPress={() => handleSessionPress(session.id, session.name)}
+                      key={session.id}
+                      style={[
+                        styles.sessionItem,
+                        isPastSessionInWeek && styles.pastSessionItem, // Style for past sessions
+                        isCurrentDaySession && styles.currentDaySessionItem, // Style for current day's session
+                        // Future sessions will have default styling unless a specific one is added
+                      ]}
+                      onPress={() => triggerSessionPress(session)}
                     >
-                    <View style={styles.sessionTextContainer}>
-                        <Text style={styles.sessionDayName}>{dayName}</Text>
-                        <Text style={styles.sessionName} numberOfLines={2} ellipsizeMode="tail">{session.name}</Text>
-                        <Text style={styles.sessionInfo}>
-                        {exerciseCount} exercice{exerciseCount !== 1 ? "s" : ""}
+                      <View style={styles.sessionTextContainer}>
+                        <Text
+                          style={[
+                            styles.sessionDayName,
+                            (isPastSessionInWeek || isFutureSessionInWeek) &&
+                              !isCurrentDaySession &&
+                              styles.offDaySessionText,
+                          ]}
+                        >
+                          {dayName}
                         </Text>
-                    </View>
+                        <Text
+                          style={[
+                            styles.sessionName,
+                            (isPastSessionInWeek || isFutureSessionInWeek) &&
+                              !isCurrentDaySession &&
+                              styles.offDaySessionText,
+                          ]}
+                          numberOfLines={2}
+                          ellipsizeMode="tail"
+                        >
+                          {session.name}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.sessionInfo,
+                            (isPastSessionInWeek || isFutureSessionInWeek) &&
+                              !isCurrentDaySession &&
+                              styles.offDaySessionText,
+                          ]}
+                        >
+                          {exerciseCount} exercice
+                          {exerciseCount !== 1 ? "s" : ""}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
-                );
+                  );
                 })}
-            </View>
+              </View>
             )}
 
-            {/* No Sessions Found Section */}
-            {activeProgram && !activeProgram.error && programSessions.length === 0 && !isLoading && !isGeneratingProgram && (
-            <View style={styles.sectionContainer}>
+          {activeProgram &&
+            !activeProgram.error &&
+            !programIsOlderThanSixWeeks &&
+            programSessions.length === 0 &&
+            !isLoading &&
+            !isGeneratingProgram && (
+              <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>Vos Séances</Text>
                 <Text style={styles.infoText}>
-                Aucune séance trouvée pour ce programme. Cela peut être en cours de préparation.
+                  Aucune séance trouvée pour ce programme. Cela peut être en
+                  cours de préparation.
                 </Text>
-            </View>
+              </View>
             )}
         </ScrollView>
       </Animated.View>
 
-      {/* Custom Confirmation Modal */}
+      {/* Confirmation Modal (for program generation) */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -384,48 +654,113 @@ export default function DashboardScreen() {
         onRequestClose={() => setIsConfirmationVisible(false)}
       >
         <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-                <Text style={styles.modalTitle}>Confirmer la Génération</Text>
-                <Text style={styles.modalMessage}>
-                    Générer un nouveau programme supprimera votre programme actif actuel. Êtes-vous sûr de vouloir continuer ?
-                </Text>
-                <View style={styles.modalButtonContainer}>
-                    <TouchableOpacity
-                        style={[styles.modalButton, styles.modalCancelButton]}
-                        onPress={() => setIsConfirmationVisible(false)}
-                        disabled={isGeneratingProgram}
-                    >
-                        <Text style={styles.modalCancelButtonText}>Annuler</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.modalButton, styles.modalConfirmButton]}
-                        onPress={confirmAndGenerateProgram}
-                        disabled={isGeneratingProgram}
-                    >
-                        {/* Text is shown, Lottie modal will cover if isGeneratingProgram is true */}
-                        <Text style={styles.modalConfirmButtonText}>Confirmer</Text>
-                    </TouchableOpacity>
-                </View>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Confirmer la Génération</Text>
+            <Text style={styles.modalMessage}>
+              Générer un nouveau programme supprimera votre programme actif
+              actuel. Êtes-vous sûr de vouloir continuer ?
+            </Text>
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCancelButton]}
+                onPress={() => setIsConfirmationVisible(false)}
+                disabled={isGeneratingProgram}
+              >
+                <Text style={styles.modalCancelButtonText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalConfirmButton]}
+                onPress={confirmAndGenerateProgram}
+                disabled={isGeneratingProgram}
+              >
+                <Text style={styles.modalConfirmButtonText}>Confirmer</Text>
+              </TouchableOpacity>
             </View>
+          </View>
         </View>
       </Modal>
 
-      {/* Full Screen Lottie Loading Animation Modal */}
+      {/* Lottie Loading Modal (for program generation) */}
       <Modal
         animationType="fade"
         transparent={true}
-        visible={isGeneratingProgram} // Controlled by isGeneratingProgram state
-        // No onRequestClose for loading modal as it's not user-dismissible
+        visible={isGeneratingProgram}
       >
         <View style={styles.loadingModalOverlay}>
           <LottieView
-            // Assurez-vous que ce chemin est correct
             source={require("../../../assets/animations/loading.json")}
             autoPlay
-            loop={true} // Loop is true for loading animations
+            loop={true}
             style={styles.lottieAnimation}
           />
-           <Text style={styles.loadingModalText}>Génération du programme...</Text>
+          <Text style={styles.loadingModalText}>
+            Génération du programme...
+          </Text>
+        </View>
+      </Modal>
+
+      {/* Session Ended Auto-Closing Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showSessionEndedModal}
+        onRequestClose={() => setShowSessionEndedModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <FontAwesome5
+              name="check-circle"
+              size={48}
+              color={Colors.dark.primary}
+              style={{ marginBottom: 15 }}
+            />
+            <Text style={styles.modalTitle}>
+              Séance "{sessionEndedInfo.name}" Terminée !
+            </Text>
+            <Text style={styles.modalMessage}>
+              Félicitations ! Temps total: {sessionEndedInfo.time}.
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Off-Day Session Confirmation Modal (for past or future sessions) */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showOffDaySessionConfirmModal}
+        onRequestClose={() => {
+          setShowOffDaySessionConfirmModal(false);
+          setSelectedOffDaySession(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Séance d'un autre jour</Text>
+            <Text style={styles.modalMessage}>
+              {selectedOffDaySession?.message ||
+                "Voulez-vous vraiment faire cette séance maintenant ?"}
+            </Text>
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCancelButton]}
+                onPress={() => {
+                  setShowOffDaySessionConfirmModal(false);
+                  setSelectedOffDaySession(null);
+                }}
+              >
+                <Text style={styles.modalCancelButtonText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalConfirmButton]}
+                onPress={confirmOffDaySession} // Renamed from confirmPastSession
+              >
+                <Text style={styles.modalConfirmButtonText}>
+                  Oui, commencer
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
     </View>
@@ -436,7 +771,7 @@ const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
     backgroundColor: Colors.dark.background,
-    paddingTop: 40, 
+    paddingTop: 40,
   },
   centered: {
     flex: 1,
@@ -445,7 +780,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dark.background,
     paddingHorizontal: 20,
   },
-  loadingText: { // For initial screen load
+  loadingText: {
     marginTop: 10,
     fontSize: 16,
     color: Colors.dark.text,
@@ -466,7 +801,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.dark.card, 
+    borderBottomColor: Colors.dark.card,
   },
   title: {
     fontSize: 26,
@@ -481,51 +816,65 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: Colors.dark.text,
     textAlign: "center",
-    marginVertical: 15, 
+    marginVertical: 15,
     paddingHorizontal: 20,
   },
-  contentScrollView: { 
+  contentScrollView: {
     flex: 1,
   },
-  scrollViewContentContainer: { 
+  scrollViewContentContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 20, 
+    paddingBottom: 20,
   },
   sectionContainer: {
     width: "100%",
     backgroundColor: Colors.dark.card,
     borderRadius: 12,
-    padding: 15,
-    marginBottom: 20, 
+    padding: 20,
+    marginBottom: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 }, 
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.22,
     shadowRadius: 2.22,
     elevation: 3,
   },
   sectionTitle: {
-    fontSize: 19, 
+    fontSize: 19,
     fontWeight: "bold",
     color: Colors.dark.tint,
-    marginBottom: 12, 
+    marginBottom: 12,
+  },
+  sectionTitleWarning: {
+    fontSize: 19,
+    fontWeight: "bold",
+    color: Colors.dark.primary,
+    marginBottom: 10,
+  },
+  oldProgramMessage: {
+    fontSize: 15,
+    color: Colors.dark.text,
+    lineHeight: 22,
+    marginBottom: 15,
+    textAlign: "center",
   },
   programName: {
-    fontSize: 21, 
+    fontSize: 21,
     fontWeight: "bold",
     color: Colors.dark.text,
     marginBottom: 10,
   },
   programDetails: {
     marginTop: 5,
+    marginBottom: 10,
   },
   detailLabel: {
-    fontWeight: "bold", 
+    fontWeight: "bold",
     color: Colors.dark.secondary,
   },
   detailText: {
     fontSize: 15,
     color: Colors.dark.text,
-    marginBottom: 5,
+    marginBottom: 6,
     lineHeight: 22,
   },
   infoText: {
@@ -536,31 +885,45 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   sessionItem: {
-    backgroundColor: Colors.dark.background, 
-    paddingVertical: 15, 
+    backgroundColor: Colors.dark.background,
+    paddingVertical: 15,
     paddingHorizontal: 15,
     borderRadius: 10,
-    marginBottom: 10, 
+    marginBottom: 10,
     flexDirection: "row",
-    justifyContent: "space-between", 
+    justifyContent: "space-between",
     alignItems: "center",
     borderWidth: 1,
     borderColor: Colors.dark.secondary,
   },
-  sessionTextContainer: { 
-    flex: 1, 
+  pastSessionItem: {
+    backgroundColor: Colors.dark.secondaryBackground || "#3a3a3c", // Darker grey for past
+    borderColor: Colors.dark.disabled || "#505052",
   },
-  sessionDayName: { 
-    fontSize: 13, 
+  currentDaySessionItem: {
+    // Style for current day's session
+    borderColor: Colors.dark.primary, // Highlight border
+    borderWidth: 2, // Thicker border
+    backgroundColor: Colors.dark.card, // Optional: slightly different background
+  },
+  offDaySessionText: {
+    // Common style for text of past or future sessions (not current day)
+    color: Colors.dark.disabledText || Colors.dark.secondary || "#999999",
+  },
+  sessionTextContainer: {
+    flex: 1,
+  },
+  sessionDayName: {
+    fontSize: 13,
     fontWeight: "bold",
     color: Colors.dark.tint,
-    marginBottom: 5, 
+    marginBottom: 5,
   },
   sessionName: {
-    fontSize: 17, 
+    fontSize: 17,
     fontWeight: "bold",
     color: Colors.dark.text,
-    marginBottom: 4, 
+    marginBottom: 4,
   },
   sessionInfo: {
     fontSize: 13,
@@ -568,21 +931,21 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     paddingVertical: 12,
-    paddingHorizontal: 25, 
-    borderRadius: 25, 
+    paddingHorizontal: 25,
+    borderRadius: 25,
     alignItems: "center",
-    marginTop: 15, 
+    marginTop: 15,
     alignSelf: "center",
   },
   actionButtonText: {
-    color: Colors.dark.text, 
+    color: Colors.dark.text,
     fontSize: 15,
     fontWeight: "bold",
   },
-  buttonDisabled: { // Applied when isGeneratingProgram is true for the action buttons
-    opacity: 0.6, 
+  buttonDisabled: {
+    opacity: 0.6,
   },
-  modalOverlay: { // For confirmation modal
+  modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.6)",
     justifyContent: "center",
@@ -646,21 +1009,20 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 15,
   },
-  // Styles for Lottie Loading Modal
   loadingModalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.85)", // Slightly darker for more focus on animation
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
     justifyContent: "center",
     alignItems: "center",
   },
   lottieAnimation: {
-    width: 250, // Can be adjusted
-    height: 250, // Can be adjusted
+    width: 250,
+    height: 250,
   },
   loadingModalText: {
     marginTop: 15,
     fontSize: 17,
-    color: Colors.dark.text, 
+    color: Colors.dark.text,
     fontWeight: "bold",
   },
 });
