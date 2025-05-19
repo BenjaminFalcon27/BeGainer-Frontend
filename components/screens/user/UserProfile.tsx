@@ -218,13 +218,6 @@ export default function UserProfile() {
         </View>
 
         <View style={styles.contentWrapper}>
-          {userName && (
-            <Text style={styles.greetingText}>Bienvenue, {userName} !</Text>
-          )}
-          {userEmail && (
-            <Text style={styles.emailText}>Email : {userEmail}</Text>
-          )}
-
           {error && !isLoading && (
             <Text style={styles.errorTextSmall}>{error}</Text>
           )}
@@ -278,7 +271,9 @@ export default function UserProfile() {
               <Text style={styles.programNameText}>{activeProgram.name}</Text>
               <Text style={styles.infoTextCompact}>
                 <Text style={styles.infoLabel}>Objectif:</Text>{" "}
-                {activeProgram.goal}
+                {goalTranslations[activeProgram.goal?.toLowerCase() || ""] ||
+                  activeProgram.goal ||
+                  "-"}
               </Text>
               <Text style={styles.infoTextCompact}>
                 <Text style={styles.infoLabel}>Durée:</Text>{" "}
