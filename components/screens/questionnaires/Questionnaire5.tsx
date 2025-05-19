@@ -6,9 +6,7 @@ import {
   Animated,
   TouchableOpacity,
   Alert,
-  // ScrollView, // Si le contenu devient trop long, envisager de le réactiver
 } from "react-native";
-// Picker n'est plus utilisé pour les jours
 import { Colors } from "@/constants/Colors";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,18 +15,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   submitUserPreferences,
   UserPreferencesPayload,
-} from "@/components/services/apiService"; // UserPreferencesPayload importé
+} from "@/components/services/apiService";
 
-// Définition des jours de la semaine
 const DAYS_OF_WEEK = [
-  { label: "L", value: 1 }, // Lundi
-  { label: "M", value: 2 }, // Mardi
-  { label: "M", value: 3 }, // Mercredi
-  { label: "J", value: 4 }, // Jeudi
-  { label: "V", value: 5 }, // Vendredi
-  { label: "S", value: 6 }, // Samedi
-  { label: "D", value: 7 }, // Dimanche
+  { label: "L", value: 1 },
+  { label: "M", value: 2 },
+  { label: "M", value: 3 },
+  { label: "J", value: 4 },
+  { label: "V", value: 5 },
+  { label: "S", value: 6 },
+  { label: "D", value: 7 },
 ];
+
+const MAX_SELECTED_DAYS = 5;
 
 export default function QuestionnaireScreen() {
   const router = useRouter();
@@ -36,7 +35,6 @@ export default function QuestionnaireScreen() {
   const [fadeAnim] = React.useState(new Animated.Value(0));
   const [translateYAnim] = React.useState(new Animated.Value(50));
   const [duration, setDuration] = React.useState(60);
-  // sessionsPerWeek est remplacé par selectedDays
   const [selectedDays, setSelectedDays] = React.useState<number[]>([]);
 
   React.useEffect(() => {
@@ -55,11 +53,22 @@ export default function QuestionnaireScreen() {
   }, [fadeAnim, translateYAnim]);
 
   const toggleDaySelection = (dayValue: number) => {
-    setSelectedDays((prevSelectedDays) =>
-      prevSelectedDays.includes(dayValue)
-        ? prevSelectedDays.filter((d) => d !== dayValue)
-        : [...prevSelectedDays, dayValue]
-    );
+    setSelectedDays((prevSelectedDays) => {
+      const isSelected = prevSelectedDays.includes(dayValue);
+      if (isSelected) {
+        return prevSelectedDays.filter((d) => d !== dayValue);
+      } else {
+        if (prevSelectedDays.length < MAX_SELECTED_DAYS) {
+          return [...prevSelectedDays, dayValue];
+        } else {
+          Alert.alert(
+            "Limite atteinte",
+            `Vous ne pouvez sélectionner que ${MAX_SELECTED_DAYS} jours d'entraînement au maximum.`
+          );
+          return prevSelectedDays;
+        }
+      }
+    });
   };
 
   const handleSubmit = async () => {
@@ -88,7 +97,6 @@ export default function QuestionnaireScreen() {
         return;
       }
 
-      // S'assurer que les valeurs numériques sont bien parsées ou ont des valeurs par défaut raisonnables
       const age = ageString ? parseInt(ageString, 10) : null;
       const height_cm = heightString ? parseInt(heightString, 10) : null;
       const weight_kg = weightString ? parseInt(weightString, 10) : null;
@@ -100,18 +108,16 @@ export default function QuestionnaireScreen() {
         age: age,
         height_cm: height_cm,
         weight_kg: weight_kg,
-        training_days: selectedDays.sort((a, b) => a - b), // Envoi des jours sélectionnés, triés
+        training_days: selectedDays.sort((a, b) => a - b),
         goal: goal,
         training_place: training_place,
         session_length: duration,
-        milestone: "default", // Conserver ou rendre configurable si besoin
+        milestone: "default",
       };
 
-      console.log("Submitting preferences:", params); // Log pour débogage
+      console.log("Submitting preferences:", params);
 
       await submitUserPreferences(params);
-      // Potentiellement stocker les jours sélectionnés dans AsyncStorage si besoin de les réutiliser
-      // await AsyncStorage.setItem('trainingDays', JSON.stringify(selectedDays));
       router.push("/dashboard/dashboard");
     } catch (error: any) {
       Alert.alert(
@@ -147,7 +153,7 @@ export default function QuestionnaireScreen() {
             value={duration}
             onValueChange={setDuration}
             minimumTrackTintColor={Colors.dark.primary}
-            maximumTrackTintColor={Colors.dark.text} // Ou Colors.dark.secondary pour moins de contraste
+            maximumTrackTintColor={Colors.dark.text}
             thumbTintColor={Colors.dark.primary}
           />
           <Text style={styles.valueText}>{duration} min</Text>
@@ -156,28 +162,41 @@ export default function QuestionnaireScreen() {
         <View style={styles.questionBlock}>
           <Text style={styles.label}>
             Quels jours souhaitez-vous vous entraîner ?
+            {selectedDays.length >= MAX_SELECTED_DAYS && (
+              <Text style={styles.limitReachedText}>
+                {"\n"}(Maximum {MAX_SELECTED_DAYS} jours atteints)
+              </Text>
+            )}
           </Text>
           <View style={styles.daysContainer}>
-            {DAYS_OF_WEEK.map((day) => (
-              <TouchableOpacity
-                key={day.value}
-                style={[
-                  styles.dayButton,
-                  selectedDays.includes(day.value) && styles.selectedDayButton,
-                ]}
-                onPress={() => toggleDaySelection(day.value)}
-              >
-                <Text
+            {DAYS_OF_WEEK.map((day) => {
+              const isSelected = selectedDays.includes(day.value);
+              const isDisabled =
+                !isSelected && selectedDays.length >= MAX_SELECTED_DAYS;
+
+              return (
+                <TouchableOpacity
+                  key={day.value}
                   style={[
-                    styles.dayButtonText,
-                    selectedDays.includes(day.value) &&
-                      styles.selectedDayButtonText,
+                    styles.dayButton,
+                    isSelected && styles.selectedDayButton,
+                    isDisabled && styles.disabledDayButton,
                   ]}
+                  onPress={() => toggleDaySelection(day.value)}
+                  disabled={isDisabled}
                 >
-                  {day.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.dayButtonText,
+                      isSelected && styles.selectedDayButtonText,
+                      isDisabled && styles.disabledDayButtonText,
+                    ]}
+                  >
+                    {day.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
       </Animated.View>
@@ -193,35 +212,41 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.dark.background,
     alignItems: "center",
-    justifyContent: "space-between", // Pour pousser le bouton "next" en bas
+    justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingTop: 60, // Espace pour le bouton retour
-    paddingBottom: 40, // Espace pour le bouton suivant
+    paddingTop: 60,
+    paddingBottom: 40,
   },
   backButton: {
     position: "absolute",
-    top: 50, // Ajusté pour le paddingTop du container
+    top: 50,
     left: 20,
     zIndex: 1,
   },
   formContainer: {
     width: "100%",
-    flex: 1, // Permet au contenu de prendre l'espace disponible
-    justifyContent: "center", // Centrer les questions verticalement
+    flex: 1,
+    justifyContent: "center",
   },
   questionBlock: {
-    marginBottom: 40, // Espace entre les questions
+    marginBottom: 40,
     width: "100%",
   },
   label: {
     color: Colors.dark.text,
-    fontSize: 20, // Maintenu
-    fontFamily: "BarlowLight", // Assurez-vous que cette police est chargée
+    fontSize: 20,
+    fontFamily: "BarlowLight",
     textAlign: "center",
-    marginBottom: 20, // Espace entre le label et le contrôle
+    marginBottom: 20,
+  },
+  limitReachedText: {
+    fontFamily: "BarlowLight",
+    color: Colors.dark.secondary,
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 5,
   },
   valueText: {
-    // Style pour afficher la valeur du slider
     fontFamily: "BarlowLight",
     color: Colors.dark.text,
     fontSize: 18,
@@ -242,18 +267,23 @@ const styles = StyleSheet.create({
   dayButton: {
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 20, // Boutons plus ronds
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: Colors.dark.secondary,
     backgroundColor: Colors.dark.card,
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 40, // Assurer une taille minimale
+    minWidth: 40,
     height: 40,
   },
   selectedDayButton: {
     backgroundColor: Colors.dark.primary,
     borderColor: Colors.dark.primary,
+  },
+  disabledDayButton: {
+    backgroundColor: Colors.dark.card,
+    borderColor: Colors.dark.secondary,
+    opacity: 0.5,
   },
   dayButtonText: {
     color: Colors.dark.text,
@@ -261,27 +291,26 @@ const styles = StyleSheet.create({
     fontFamily: "BarlowLight",
   },
   selectedDayButtonText: {
-    color: Colors.dark.background, // Ou une couleur contrastante sur le fond primary
+    color: Colors.dark.background,
     fontWeight: "bold",
+  },
+  disabledDayButtonText: {
+    color: Colors.dark.text,
+    opacity: 0.7,
   },
   nextButton: {
     backgroundColor: Colors.dark.primary,
-    paddingVertical: 15, // Un peu plus grand
+    paddingVertical: 15,
     paddingHorizontal: 20,
-    borderRadius: 8, // Bords plus arrondis
+    borderRadius: 8,
     alignItems: "center",
     width: "100%",
-    // position: "absolute", // Retiré pour un flux naturel
-    // bottom: 40,
-    // left: 20,
-    // right: 20,
   },
   nextButtonText: {
     fontFamily: "BarlowLight",
-    color: "#FFF", // Maintenu
+    color: "#FFF",
     fontWeight: "bold",
-    fontSize: 16, // Légèrement augmenté
+    fontSize: 16,
     textAlign: "center",
   },
-  // Styles rowCenter et col supprimés car la structure est simplifiée
 });
