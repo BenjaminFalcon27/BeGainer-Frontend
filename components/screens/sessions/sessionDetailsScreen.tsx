@@ -11,8 +11,8 @@ import {
   Linking,
   Modal,
   BackHandler,
-  Image,
 } from "react-native";
+import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
@@ -392,7 +392,7 @@ export default function SessionDetailScreen() {
                     <Image
                       source={{ uri: sessionEx.image_url }}
                       style={styles.exerciseImage}
-                      resizeMode="contain"
+                      contentFit="contain"
                       onError={(e) => {
                       }}
                       onLoad={() => {}}
