@@ -85,6 +85,7 @@ export default function DashboardScreen() {
   const [sessionCompletionData, setSessionCompletionData] = useState<{
     [sessionId: string]: SessionCompletionStatus;
   }>({});
+  const [completedSessionsCount, setCompletedSessionsCount] = useState(0);
 
   const [isConfirmationVisible, setIsConfirmationVisible] = useState(false);
   const [showSessionEndedModal, setShowSessionEndedModal] = useState(false);
@@ -290,6 +291,22 @@ export default function DashboardScreen() {
     loadDashboardData();
   }, [router, fadeAnim, sessionJustEnded]);
 
+  useEffect(() => {
+    if (programSessions.length > 0 && Object.keys(sessionCompletionData).length > 0) {
+      const count = programSessions.reduce((acc, session) => {
+        const status = sessionCompletionData[session.id];
+        if (status && !status.isLoading && status.count > 0) {
+          return acc + 1;
+        }
+        return acc;
+      }, 0);
+      setCompletedSessionsCount(count);
+    } else {
+      setCompletedSessionsCount(0);
+    }
+  }, [sessionCompletionData, programSessions]);
+
+
   const navigateToProfile = () => {
     router.push("/user/profile");
   };
@@ -312,6 +329,11 @@ export default function DashboardScreen() {
     const completionStatus = sessionCompletionData[session.id];
     const isCompleted =
       (completionStatus?.count || 0) > 0 && !completionStatus?.isLoading;
+
+    if (isCompleted) {
+      return;
+    }
+
     const sessionDayNumber = session.day_number || 0;
 
     if (
@@ -385,26 +407,12 @@ export default function DashboardScreen() {
       return;
     }
 
-    if (
-      userPreferences.name === null ||
-      userPreferences.name === undefined ||
-      userPreferences.gender === null ||
-      userPreferences.gender === undefined ||
-      userPreferences.age === null ||
-      userPreferences.age === undefined ||
-      userPreferences.height_cm === null ||
-      userPreferences.height_cm === undefined ||
-      userPreferences.weight_kg === null ||
-      userPreferences.weight_kg === undefined ||
-      userPreferences.goal === null ||
-      userPreferences.goal === undefined ||
-      userPreferences.training_place === null ||
-      userPreferences.training_place === undefined ||
-      userPreferences.session_length === null ||
-      userPreferences.session_length === undefined ||
-      userPreferences.milestone === null ||
-      userPreferences.milestone === undefined
-    ) {
+    const essentialPrefs = [
+      userPreferences.name, userPreferences.gender, userPreferences.age,
+      userPreferences.height_cm, userPreferences.weight_kg, userPreferences.goal,
+      userPreferences.training_place, userPreferences.session_length, userPreferences.milestone
+    ];
+    if (essentialPrefs.some(pref => pref === null || pref === undefined)) {
       setError(
         "Certaines préférences utilisateur essentielles sont manquantes. Veuillez vérifier votre profil."
       );
@@ -438,15 +446,15 @@ export default function DashboardScreen() {
 
         const prefsForUpdate: UserPreferencesPayload = {
           user_id: userId,
-          name: userPreferences.name,
-          gender: userPreferences.gender,
-          age: userPreferences.age,
-          height_cm: userPreferences.height_cm,
-          weight_kg: userPreferences.weight_kg,
-          goal: userPreferences.goal,
-          training_place: userPreferences.training_place,
-          session_length: userPreferences.session_length,
-          milestone: userPreferences.milestone,
+          name: userPreferences.name!,
+          gender: userPreferences.gender!,
+          age: userPreferences.age!,
+          height_cm: userPreferences.height_cm!,
+          weight_kg: userPreferences.weight_kg!,
+          goal: userPreferences.goal!,
+          training_place: userPreferences.training_place!,
+          session_length: userPreferences.session_length!,
+          milestone: userPreferences.milestone!,
           ...(userPreferences.training_days && {
             training_days: userPreferences.training_days,
           }),
@@ -466,7 +474,7 @@ export default function DashboardScreen() {
         } else {
           if (
             !("error" in updatedPrefsResponse) &&
-            typeof updatedPrefsResponse.user_id === "string"
+            typeof (updatedPrefsResponse as UserPreferencesDetail).user_id === "string"
           ) {
             setUserPreferences(updatedPrefsResponse as UserPreferencesDetail);
           } else {
@@ -569,15 +577,15 @@ export default function DashboardScreen() {
     if (activeProgram && activeProgram.start_date) {
       const startDate = new Date(activeProgram.start_date);
       const currentDate = new Date();
-      const programDurationMs =
-        (activeProgram.duration_weeks || 6) * 7 * 24 * 60 * 60 * 1000;
+      const durationWeeks = activeProgram.duration_weeks > 0 ? activeProgram.duration_weeks : 6;
+      const programDurationMs = durationWeeks * 7 * 24 * 60 * 60 * 1000;
       if (!isNaN(startDate.getTime())) {
         return currentDate.getTime() > startDate.getTime() + programDurationMs;
       }
     }
     return false;
   };
-  const programIsOlderThanSixWeeks = isProgramOld();
+  const programIsOlderThanDuration = isProgramOld();
 
   if (isLoading && (!userId || !token)) {
     return (
@@ -644,14 +652,14 @@ export default function DashboardScreen() {
 
           {activeProgram && !activeProgram.error && (
             <View style={styles.sectionContainer}>
-              {programIsOlderThanSixWeeks ? (
+              {programIsOlderThanDuration ? (
                 <>
                   <Text style={styles.sectionTitleWarning}>
                     Programme à renouveler
                   </Text>
                   <Text style={styles.oldProgramMessage}>
                     Votre programme "{activeProgram.name}" est terminé ou a
-                    dépassé sa durée prévue de {activeProgram.duration_weeks}{" "}
+                    dépassé sa durée prévue de {activeProgram.duration_weeks || "N/A"}{" "}
                     semaines. Pour de meilleurs résultats et continuer à
                     progresser, il est recommandé de le renouveler.
                   </Text>
@@ -717,11 +725,11 @@ export default function DashboardScreen() {
 
           {activeProgram &&
             !activeProgram.error &&
-            !programIsOlderThanSixWeeks &&
+            !programIsOlderThanDuration &&
             programSessions.length > 0 && (
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>
-                  Vos Séances ({programSessions.length})
+                  Vos Séances ({completedSessionsCount} / {programSessions.length} complétées)
                 </Text>
                 {programSessions.map((session) => {
                   const exerciseCount =
@@ -784,7 +792,7 @@ export default function DashboardScreen() {
                       key={session.id}
                       style={[styles.sessionItem, itemDynamicStyle]}
                       onPress={() => triggerSessionPress(session)}
-                      disabled={isLoadingCompletion}
+                      disabled={isLoadingCompletion || isCompleted}
                     >
                       <View style={styles.sessionTextContainer}>
                         <View style={styles.sessionHeaderRow}>
@@ -841,10 +849,11 @@ export default function DashboardScreen() {
 
           {activeProgram &&
             !activeProgram.error &&
-            !programIsOlderThanSixWeeks &&
+            !programIsOlderThanDuration &&
             programSessions.length === 0 &&
             !isLoading &&
-            !isGeneratingProgram && (
+            !isGeneratingProgram &&
+            (
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>Vos Séances</Text>
                 <Text style={styles.infoText}>
@@ -878,7 +887,7 @@ export default function DashboardScreen() {
                 <Text style={styles.modalCancelButtonText}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalConfirmButton]}
+                style={[styles.modalButton, styles.modalConfirmButton, isGeneratingProgram && styles.buttonDisabled]}
                 onPress={confirmAndGenerateProgram}
                 disabled={isGeneratingProgram}
               >
@@ -977,10 +986,10 @@ const pastItemBorderColor = Colors.dark.warningBorder || missedWarningColor;
 const pastItemTextColor = Colors.dark.warningText || "#B0B0B0";
 const pastItemNameTextColor = Colors.dark.warningTitleText || "#E0E0E0";
 
-const completedColor = "#4CAF50";
-const completedBackgroundColor = "#2A3B2B";
+const completedColor =  "#4CAF50";
+const completedBackgroundColor =  "#2A3B2B";
 const completedBorderColor = completedColor;
-const completedTextColor = "#A5D6A7";
+const completedTextColor =  "#A5D6A7";
 const completedIconColor = completedColor;
 
 const styles = StyleSheet.create({
@@ -1124,8 +1133,8 @@ const styles = StyleSheet.create({
   completedSessionItem: {
     backgroundColor: completedBackgroundColor,
     borderColor: completedBorderColor,
+    opacity: 0.8,
   },
-
   sessionTextContainer: {
     flex: 1,
   },
@@ -1161,6 +1170,7 @@ const styles = StyleSheet.create({
   pastSessionInfoText: { color: pastItemTextColor },
   currentDaySessionInfoText: { color: Colors.dark.secondary },
   completedSessionInfoText: { color: completedTextColor },
+
 
   missedSessionBadge: {
     flexDirection: "row",
