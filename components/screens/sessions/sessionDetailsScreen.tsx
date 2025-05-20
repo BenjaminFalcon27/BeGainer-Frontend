@@ -11,7 +11,7 @@ import {
   Linking,
   Modal,
   BackHandler,
-  Image, // Import Image
+  Image,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -23,7 +23,6 @@ import {
   logSessionCompletion,
 } from "@/components/services/apiService";
 
-// Interface for tracking exercise progress
 interface ExerciseProgress {
   id: string;
   name: string;
@@ -31,7 +30,6 @@ interface ExerciseProgress {
   completedSets: number;
 }
 
-// Back Icon Component
 const BackIcon = () => (
   <MaterialIcons
     name="arrow-back-ios"
@@ -41,7 +39,6 @@ const BackIcon = () => (
   />
 );
 
-// Helper to format time
 const formatTime = (totalSeconds: number) => {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -57,7 +54,6 @@ const formatTime = (totalSeconds: number) => {
   return `${paddedMinutes}:${paddedSeconds}`;
 };
 
-
 export default function SessionDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string; sessionName?: string }>();
@@ -71,14 +67,12 @@ export default function SessionDetailScreen() {
   const [exercises, setExercises] = useState<SessionExercise[]>([]);
   const [token, setToken] = useState<string | null>(null);
 
-  // States for interactive session
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const timerIntervalRef = useRef<number | null>(null);
   const [exerciseProgress, setExerciseProgress] = useState<ExerciseProgress[]>([]);
   const [showExitConfirmationModal, setShowExitConfirmationModal] = useState(false);
-
 
   useEffect(() => {
     if (params && typeof params.id === "string" && params.id.trim() !== "") {
@@ -104,22 +98,9 @@ export default function SessionDetailScreen() {
       if (storedToken) {
         try {
           const exercisesData = await fetchExercisesForOneSession(currentSessionId, storedToken);
-          
-          console.log("DEBUG: Données brutes de fetchExercisesForOneSession:", JSON.stringify(exercisesData, null, 2));
 
           if (Array.isArray(exercisesData)) {
-            exercisesData.forEach((item: any, index: number) => {
-              if (item && typeof item.image_url === 'undefined') {
-                console.warn(`DEBUG: Élément ${index} ('${item.name || 'Nom inconnu'}') dans les données brutes N'A PAS de image_url.`);
-              } else if (item && item.image_url === null) {
-                console.log(`DEBUG: Élément ${index} ('${item.name || 'Nom inconnu'}') dans les données brutes a image_url = null.`);
-              } else if (item) {
-                console.log(`DEBUG: Élément ${index} ('${item.name || 'Nom inconnu'}') dans les données brutes a image_url = ${item.image_url}`);
-              }
-            });
-
             setExercises(exercisesData as SessionExercise[]);
-            
             const initialProgress = (exercisesData as SessionExercise[]).map(ex => ({
               id: ex.id,
               name: ex.name,
@@ -131,7 +112,6 @@ export default function SessionDetailScreen() {
             setError((exercisesData as { error: string }).error || "Erreur lors de la récupération des exercices.");
             setExercises([]); setExerciseProgress([]);
           } else {
-            console.warn("DEBUG: exercisesData n'est pas un tableau et n'est pas un objet d'erreur reconnu:", exercisesData);
             setError("Réponse inattendue du serveur pour les exercices.");
             setExercises([]); setExerciseProgress([]);
           }
@@ -151,8 +131,6 @@ export default function SessionDetailScreen() {
 
   }, [currentSessionId]);
 
-
-  // Timer effect
   useEffect(() => {
     if (isSessionActive && sessionStartTime) {
       if (timerIntervalRef.current === null) {
@@ -174,7 +152,6 @@ export default function SessionDetailScreen() {
     };
   }, [isSessionActive, sessionStartTime]);
 
-  // Back press handler effect
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
@@ -189,7 +166,6 @@ export default function SessionDetailScreen() {
       return () => subscription.remove();
     }, [isSessionActive])
   );
-
 
   const handleStartSession = () => {
     setIsSessionActive(true);
@@ -225,32 +201,26 @@ export default function SessionDetailScreen() {
       })
     );
   };
-  
+
   const handleEndSession = async () => {
     if (!allSetsCompleted) {
         Alert.alert("Attention", "Veuillez compléter toutes les séries de tous les exercices avant de terminer la séance.");
         return;
     }
 
-    const finalElapsedTime = elapsedTime; // Capture current elapsed time before state changes
-    setIsSessionActive(false); 
-    
-    console.log("Session terminée sur SessionDetailScreen. Temps total:", formatTime(finalElapsedTime), "Progression:", exerciseProgress);
-    
+    const finalElapsedTime = elapsedTime;
+    setIsSessionActive(false);
+
     if (token && currentSessionId) {
       const userId = await AsyncStorage.getItem("userId");
       if (userId) {
         const result = await logSessionCompletion(userId, currentSessionId, token);
       if (result.error) {
-        console.warn("❌ Échec de l'enregistrement de la session :", result.error);
       } else {
-        console.log("✅ Session complétée enregistrée !");
       }
     }
   }
 
-
-    // Reset exercise progress for this screen (in case user navigates back somehow without full reload)
      const initialProgress = exercises.map(ex => ({
       id: ex.id,
       name: ex.name,
@@ -270,7 +240,6 @@ export default function SessionDetailScreen() {
     });
   };
 
-
   const handleYouTubeSearch = async (exerciseName: string) => {
     if (!exerciseName) return;
     const query = encodeURIComponent(`Tuto: ${exerciseName}`);
@@ -281,7 +250,6 @@ export default function SessionDetailScreen() {
       else Alert.alert("Erreur", `Impossible d'ouvrir le lien: ${url}`);
     } catch (error) {
       Alert.alert("Erreur", "Une erreur est survenue en essayant d'ouvrir YouTube.");
-      console.error("YouTube Linking Error:", error);
     }
   };
 
@@ -290,11 +258,7 @@ export default function SessionDetailScreen() {
       setIsLoading(true); setError(null);
       try {
         const exercisesData = await fetchExercisesForOneSession(currentSessionId, token);
-        console.log("DEBUG (retry): Données brutes de fetchExercisesForOneSession:", JSON.stringify(exercisesData, null, 2));
         if (Array.isArray(exercisesData)) {
-          exercisesData.forEach((item: any, index: number) => { 
-            if (item && typeof item.image_url === 'undefined') console.warn(`DEBUG (retry): Élément ${index} ('${item.name || 'Nom inconnu'}') N'A PAS de image_url.`);
-          });
           setExercises(exercisesData as SessionExercise[]);
           const initialProgress = (exercisesData as SessionExercise[]).map(ex => ({ id: ex.id, name:ex.name, totalSets: ex.sets, completedSets: 0 }));
           setExerciseProgress(initialProgress);
@@ -378,7 +342,6 @@ export default function SessionDetailScreen() {
     );
   }
 
-
   return (
     <View style={styles.mainContainer}>
       <View style={styles.headerBar}>
@@ -424,17 +387,15 @@ export default function SessionDetailScreen() {
 
             return (
               <View key={sessionEx.id} style={styles.exerciseCard}>
-                {/* Exercise Image Container */}
                 <View style={styles.exerciseImageContainer}>
                   {sessionEx.image_url ? (
                     <Image
                       source={{ uri: sessionEx.image_url }}
-                      style={styles.exerciseImage} 
-                      resizeMode="contain" 
+                      style={styles.exerciseImage}
+                      resizeMode="contain"
                       onError={(e) => {
-                        console.warn(`ERREUR CHARGEMENT IMAGE pour ${sessionEx.name} (URL: ${sessionEx.image_url}): `, e.nativeEvent.error);
                       }}
-                      onLoad={() => console.log(`Image chargée avec succès pour ${sessionEx.name}: ${sessionEx.image_url}`)}
+                      onLoad={() => {}}
                     />
                   ) : (
                     <View style={styles.exerciseImagePlaceholder}>
@@ -508,7 +469,6 @@ export default function SessionDetailScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Exit Confirmation Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -637,33 +597,27 @@ const styles = StyleSheet.create({
     shadowRadius: 2.62,
     elevation: 4,
   },
-  // Conteneur pour l'image et son placeholder, pour appliquer la bordure et le borderRadius
   exerciseImageContainer: {
-    width: 240, 
+    width: 240,
     height: 240,
-    alignSelf: 'center', 
-    borderRadius: 8, // Coins arrondis pour le conteneur
+    alignSelf: 'center',
+    borderRadius: 8,
     marginBottom: 12,
-    backgroundColor: Colors.dark.card, 
-    borderWidth: 1, 
-    borderColor: Colors.dark.secondaryBackground, 
-    overflow: 'hidden', // Important pour que le borderRadius du conteneur coupe l'image
+    backgroundColor: Colors.dark.card,
+    borderWidth: 1,
+    borderColor: Colors.dark.secondaryBackground,
+    overflow: 'hidden',
   },
-  // Style pour l'image elle-même
   exerciseImage: {
-    width: "100%", // L'image prend toute la largeur de son conteneur carré
-    height: "100%", // L'image prend toute la hauteur de son conteneur carré
-    // borderRadius n'est plus nécessaire ici, car le parent exerciseImageContainer s'en charge avec overflow: 'hidden'
-  },
-  exerciseImagePlaceholder: {
-    // Le placeholder remplit également le conteneur exerciseImageContainer
     width: "100%",
     height: "100%",
-    // borderRadius n'est plus nécessaire ici
-    backgroundColor: Colors.dark.secondaryBackground, 
+  },
+  exerciseImagePlaceholder: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: Colors.dark.secondaryBackground,
     justifyContent: 'center',
     alignItems: 'center',
-    // La bordure est déjà sur exerciseImageContainer
   },
   exerciseImagePlaceholderText: {
     marginTop: 8,
@@ -880,4 +834,3 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 });
-
