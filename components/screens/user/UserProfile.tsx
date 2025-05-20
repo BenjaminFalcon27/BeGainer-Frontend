@@ -14,7 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
   fetchUserPreferencesDetails,
-  UserPreferencesDetail, // Assurez-vous que cette interface contient bien training_days?: number[] (où Lundi=1, etc.)
+  UserPreferencesDetail,
   UserProgram,
   fetchProgramById,
   ProgramSession,
@@ -35,7 +35,6 @@ const EditIcon = ({ onPress }: { onPress: () => void }) => (
   </TouchableOpacity>
 );
 
-// Les labels des jours, Lundi est à l'index 0, Mardi à l'index 1, etc.
 const DAY_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
 
 export default function UserProfile() {
@@ -131,7 +130,6 @@ export default function UserProfile() {
           router.replace("/");
         }
       } catch (e: any) {
-        console.error("Échec chargement profil:", e);
         currentError = e.message || "Erreur inattendue.";
       } finally {
         setError(currentError);
@@ -158,19 +156,15 @@ export default function UserProfile() {
     router.push("/user/edit-preferences");
   };
 
-  // Fonction pour formater l'affichage des jours d'entraînement
-  // Supposant que 'days' contient des nombres où Lundi=1, Mardi=2, ..., Dimanche=7
   const formatTrainingDays = (days?: number[]): string => {
     if (!days || days.length === 0) {
       return "-";
     }
-    // Trier les jours (1-7) et mapper à l'index du tableau DAY_LABELS (0-6)
     return days
       .sort((a, b) => a - b)
       .map((dayValue) => {
-        // Ajuster dayValue (1-7) pour l'index du tableau (0-6)
         const dayIndex = dayValue - 1;
-        return DAY_LABELS[dayIndex] || "?"; // '?' si dayValue est hors de 1-7
+        return DAY_LABELS[dayIndex] || "?";
       })
       .join(", ");
   };

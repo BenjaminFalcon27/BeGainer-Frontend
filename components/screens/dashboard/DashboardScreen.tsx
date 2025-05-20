@@ -27,7 +27,6 @@ import {
   deleteProgram,
 } from "@/components/services/apiService";
 
-// Define UserProgram locally to include start_date
 export interface UserProgram {
   id: string;
   user_id: string;
@@ -38,7 +37,6 @@ export interface UserProgram {
   error?: string;
 }
 
-// Extend ProgramSession locally
 interface ProgramSession extends ApiProgramSession {
   day_number: number;
   exercise_count: number;
@@ -64,11 +62,10 @@ const ProfileIcon = () => (
   <MaterialIcons name="account-circle" size={28} color={Colors.dark.tint} />
 );
 
-// Helper function to get current day of the week (1 for Monday, 7 for Sunday)
 const getCurrentDayOfWeek = () => {
   const today = new Date();
-  const day = today.getDay(); // Sunday is 0, Monday is 1, ..., Saturday is 6
-  return day === 0 ? 7 : day; // Adjust Sunday to be 7
+  const day = today.getDay();
+  return day === 0 ? 7 : day;
 };
 
 export default function DashboardScreen() {
@@ -86,7 +83,7 @@ export default function DashboardScreen() {
   const [activeProgram, setActiveProgram] = useState<UserProgram | null>(null);
   const [programSessions, setProgramSessions] = useState<ProgramSession[]>([]);
 
-  const [isConfirmationVisible, setIsConfirmationVisible] = useState(false); // For program generation
+  const [isConfirmationVisible, setIsConfirmationVisible] = useState(false);
   const [showSessionEndedModal, setShowSessionEndedModal] = useState(false);
   const [sessionEndedInfo, setSessionEndedInfo] = useState({
     name: "",
@@ -98,7 +95,6 @@ export default function DashboardScreen() {
     sessionName?: string;
   }>();
 
-  // State for off-day session confirmation
   const [showOffDaySessionConfirmModal, setShowOffDaySessionConfirmModal] =
     useState(false);
   const [selectedOffDaySession, setSelectedOffDaySession] = useState<{
@@ -124,7 +120,6 @@ export default function DashboardScreen() {
       setHandledSessionEnd(true);
       router.setParams({});
       const timer = setTimeout(() => {
-        console.log("⏳ Fermeture du modal");
         setShowSessionEndedModal(false);
       }, 3000);
       return () => clearTimeout(timer);
@@ -249,7 +244,6 @@ export default function DashboardScreen() {
       });
       setShowOffDaySessionConfirmModal(true);
     } else {
-      // Session is for the current day
       navigateToSessionDetails(session.id, session.name);
     }
   };
@@ -302,13 +296,9 @@ export default function DashboardScreen() {
         const deleteResponse = await deleteProgram(oldProgramId, token);
         if (deleteResponse.error) {
           const deleteErrorMessage = `Échec de la suppression de l'ancien programme (ID: ${oldProgramId}): ${deleteResponse.error}. La génération du nouveau programme va continuer.`;
-          console.warn(`Tableau de bord: ${deleteErrorMessage}`);
           Alert.alert("Attention", deleteErrorMessage);
           accumulatedErrorMessages += deleteErrorMessage + "\n";
         } else {
-          console.log(
-            `Tableau de bord: Ancien programme ${oldProgramId} supprimé avec succès.`
-          );
           setUserPreferences((prev) =>
             prev ? { ...prev, active_program_id: undefined } : null
           );
@@ -356,13 +346,8 @@ export default function DashboardScreen() {
           } else {
             const unexpectedFormatError =
               "La réponse de mise à jour des préférences n'était pas au format attendu.";
-            console.error(unexpectedFormatError, updatedPrefsResponse);
             accumulatedErrorMessages += unexpectedFormatError + "\n";
           }
-          console.log(
-            genResponse.message ||
-              "Nouveau programme généré et défini comme actif !"
-          );
         }
 
         const programDetails = (await fetchProgramById(
@@ -589,7 +574,6 @@ export default function DashboardScreen() {
                         styles.sessionItem,
                         isPastSessionAndNotCurrent && styles.pastSessionItem,
                         isCurrentDaySession && styles.currentDaySessionItem,
-                        // Future sessions use default sessionItem or specific future style if added
                       ]}
                       onPress={() => triggerSessionPress(session)}
                     >
@@ -665,7 +649,6 @@ export default function DashboardScreen() {
         </ScrollView>
       </Animated.View>
 
-      {/* Confirmation Modal (for program generation) */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -699,7 +682,6 @@ export default function DashboardScreen() {
         </View>
       </Modal>
 
-      {/* Lottie Loading Modal (for program generation) */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -718,7 +700,6 @@ export default function DashboardScreen() {
         </View>
       </Modal>
 
-      {/* Session Ended Auto-Closing Modal */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -746,7 +727,6 @@ export default function DashboardScreen() {
         </View>
       </Modal>
 
-      {/* Off-Day Session Confirmation Modal (for past or future sessions) */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -913,18 +893,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   sessionItem: {
-    backgroundColor: Colors.dark.background, // Default background
-    paddingVertical: 12, // Adjusted padding
+    backgroundColor: Colors.dark.background,
+    paddingVertical: 12,
     paddingHorizontal: 15,
     borderRadius: 10,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: Colors.dark.secondary, // Default border
+    borderColor: Colors.dark.secondary,
   },
   pastSessionItem: {
     backgroundColor: pastItemBackgroundColor,
     borderColor: pastItemBorderColor,
-    // No change to borderWidth, keeps it consistent unless specified
   },
   currentDaySessionItem: {
     borderColor: Colors.dark.primary,
@@ -938,42 +917,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4, // Adjust as needed
-  },
-  sessionDayName: { // Default style for day name
-    fontSize: 13,
-    fontWeight: "bold",
-    color: Colors.dark.tint, // Default color for day name
-  },
-  pastSessionDayNameText: { // Specific for past sessions
-    color: pastItemTextColor, // Use the distinct text color for past items
-  },
-  currentDaySessionDayNameText: { // Specific for current day sessions
-    color: Colors.dark.primary, // Example: Highlight color for current day
-  },
-  sessionName: { // Default style for session name
-    fontSize: 17,
-    fontWeight: "bold",
-    color: Colors.dark.text, // Default color for session name
     marginBottom: 4,
   },
-  pastSessionNameText: { // Specific for past sessions
-     color: pastItemNameTextColor, // Use the distinct, possibly brighter, text color for past item names
-  },
-  currentDaySessionNameText: { // Specific for current day sessions
-     color: Colors.dark.text, // Or a highlighted color if desired
-  },
-  sessionInfo: { // Default style for session info
+  sessionDayName: {
     fontSize: 13,
-    color: Colors.dark.secondary, // Default color for session info
+    fontWeight: "bold",
+    color: Colors.dark.tint,
   },
-  pastSessionInfoText: { // Specific for past sessions
-    color: pastItemTextColor, // Use the distinct text color for past items
+  pastSessionDayNameText: {
+    color: pastItemTextColor,
   },
-  currentDaySessionInfoText: { // Specific for current day sessions
-    color: Colors.dark.secondary, // Or a highlighted color
+  currentDaySessionDayNameText: {
+    color: Colors.dark.primary,
   },
-  offDaySessionText: { // For FUTURE off-day sessions (text color)
+  sessionName: {
+    fontSize: 17,
+    fontWeight: "bold",
+    color: Colors.dark.text,
+    marginBottom: 4,
+  },
+  pastSessionNameText: {
+     color: pastItemNameTextColor,
+  },
+  currentDaySessionNameText: {
+     color: Colors.dark.text,
+  },
+  sessionInfo: {
+    fontSize: 13,
+    color: Colors.dark.secondary,
+  },
+  pastSessionInfoText: {
+    color: pastItemTextColor,
+  },
+  currentDaySessionInfoText: {
+    color: Colors.dark.secondary,
+  },
+  offDaySessionText: {
     color: Colors.dark.disabledText || Colors.dark.secondary || "#999999",
   },
   missedSessionBadge: {
@@ -982,13 +961,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 4,
-    backgroundColor: 'rgba(0,0,0,0.2)', // Slight background for the badge itself if needed
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   missedSessionBadgeText: {
     marginLeft: 4,
     fontSize: 11,
     fontWeight: '600',
-    color: missedWarningColor, // Distinct color for "Séance manquée" text & icon
+    color: missedWarningColor,
   },
   actionButton: {
     paddingVertical: 12,
@@ -1066,7 +1045,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dark.primary,
   },
   modalConfirmButtonText: {
-    color: Colors.dark.background, // Changed to background assuming primary is light
+    color: Colors.dark.background,
     fontWeight: "bold",
     fontSize: 15,
   },

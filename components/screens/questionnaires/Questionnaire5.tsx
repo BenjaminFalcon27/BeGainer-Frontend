@@ -115,8 +115,6 @@ export default function QuestionnaireScreen() {
         milestone: "default",
       };
 
-      console.log("Submitting preferences:", params);
-
       await submitUserPreferences(params);
       router.push("/dashboard/dashboard");
     } catch (error: any) {
