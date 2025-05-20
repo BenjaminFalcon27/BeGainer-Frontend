@@ -106,11 +106,12 @@ export default function DashboardScreen() {
     name?: string;
     message: string;
   } | null>(null);
-
+  const [handledSessionEnd, setHandledSessionEnd] = useState(false);
   const currentDayOfWeek = getCurrentDayOfWeek();
-
+  
   useEffect(() => {
     if (
+      !handledSessionEnd &&
       params?.sessionJustEnded === "true" &&
       params?.sessionTime &&
       params?.sessionName
@@ -120,12 +121,15 @@ export default function DashboardScreen() {
         time: params.sessionTime,
       });
       setShowSessionEndedModal(true);
+      setHandledSessionEnd(true);
+      router.setParams({});
       const timer = setTimeout(() => {
+        console.log("⏳ Fermeture du modal");
         setShowSessionEndedModal(false);
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [params]);
+  }, [params, handledSessionEnd]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -720,6 +724,9 @@ export default function DashboardScreen() {
             <Text style={styles.modalMessage}>
               Félicitations ! Temps total: {sessionEndedInfo.time}.
             </Text>
+            <TouchableOpacity onPress={() => setShowSessionEndedModal(false)}>
+              <Text style={{ color: "red" }}>Fermer le recap</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>

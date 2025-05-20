@@ -391,9 +391,6 @@ export const updateUserPreferencesAndRegenerateProgram = async (
   };
 };
 
-
-// --- Other existing functions from your apiService.ts ---
-
 export const fetchProgramById = async (
   programId: string,
   token: string
@@ -557,3 +554,24 @@ export const updateUserActiveProgram = async (
   });
   return handleApiResponse<UserPreferencesDetail | { error: string }>(response);
 };
+
+export const logSessionCompletion = async (
+  userId: string,
+  sessionId: string,
+  token: string
+): Promise<{ message?: string; error?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/session-logs`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ user_id: userId, session_id: sessionId }),
+    });
+    return await handleApiResponse<{ message?: string; error?: string }>(response);
+  } catch (err: any) {
+    return { error: err.message || "Erreur lors de l'enregistrement de la session." };
+  }
+};
+

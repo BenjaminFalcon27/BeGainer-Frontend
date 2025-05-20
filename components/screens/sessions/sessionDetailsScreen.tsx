@@ -19,6 +19,7 @@ import { Colors } from "@/constants/Colors";
 import {
   SessionExercise,
   fetchExercisesForOneSession,
+  logSessionCompletion,
 } from "@/components/services/apiService";
 
 // Interface for tracking exercise progress
@@ -208,7 +209,7 @@ export default function SessionDetailScreen() {
     );
   };
   
-  const handleEndSession = () => {
+  const handleEndSession = async () => {
     if (!allSetsCompleted) {
         Alert.alert("Attention", "Veuillez compléter toutes les séries de tous les exercices avant de terminer la séance.");
         return;
@@ -216,10 +217,22 @@ export default function SessionDetailScreen() {
 
     const finalElapsedTime = elapsedTime; // Capture current elapsed time before state changes
     setIsSessionActive(false); 
-    // sessionStartTime will be set to null by the timer's useEffect due to isSessionActive change
     
     console.log("Session terminée sur SessionDetailScreen. Temps total:", formatTime(finalElapsedTime), "Progression:", exerciseProgress);
     
+    if (token && currentSessionId) {
+      const userId = await AsyncStorage.getItem("userId");
+      if (userId) {
+        const result = await logSessionCompletion(userId, currentSessionId, token);
+      if (result.error) {
+        console.warn("❌ Échec de l'enregistrement de la session :", result.error);
+      } else {
+        console.log("✅ Session complétée enregistrée !");
+      }
+    }
+  }
+
+
     // Reset exercise progress for this screen (in case user navigates back somehow without full reload)
      const initialProgress = exercises.map(ex => ({
       id: ex.id,
@@ -805,3 +818,4 @@ const styles = StyleSheet.create({
   //   fontSize: 15,
   // }
 });
+
