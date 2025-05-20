@@ -9,8 +9,9 @@ import {
   Animated,
   Alert,
   Linking,
-  Modal, 
-  BackHandler, 
+  Modal,
+  BackHandler,
+  Image, // Import Image
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -23,8 +24,8 @@ import {
 
 // Interface for tracking exercise progress
 interface ExerciseProgress {
-  id: string; 
-  name: string; 
+  id: string;
+  name: string;
   totalSets: number;
   completedSets: number;
 }
@@ -73,10 +74,9 @@ export default function SessionDetailScreen() {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const timerIntervalRef = useRef<number | null>(null); // Corrected type: number | null
+  const timerIntervalRef = useRef<number | null>(null);
   const [exerciseProgress, setExerciseProgress] = useState<ExerciseProgress[]>([]);
   const [showExitConfirmationModal, setShowExitConfirmationModal] = useState(false);
-  // showEndSessionConfirmModal is removed as the modal will be on dashboard
 
 
   useEffect(() => {
@@ -103,17 +103,35 @@ export default function SessionDetailScreen() {
       if (storedToken) {
         try {
           const exercisesData = await fetchExercisesForOneSession(currentSessionId, storedToken);
+          
+          console.log("DEBUG: Données brutes de fetchExercisesForOneSession:", JSON.stringify(exercisesData, null, 2));
+
           if (Array.isArray(exercisesData)) {
-            setExercises(exercisesData);
-            const initialProgress = exercisesData.map(ex => ({
+            exercisesData.forEach((item: any, index: number) => {
+              if (item && typeof item.image_url === 'undefined') {
+                console.warn(`DEBUG: Élément ${index} ('${item.name || 'Nom inconnu'}') dans les données brutes N'A PAS de image_url.`);
+              } else if (item && item.image_url === null) {
+                console.log(`DEBUG: Élément ${index} ('${item.name || 'Nom inconnu'}') dans les données brutes a image_url = null.`);
+              } else if (item) {
+                console.log(`DEBUG: Élément ${index} ('${item.name || 'Nom inconnu'}') dans les données brutes a image_url = ${item.image_url}`);
+              }
+            });
+
+            setExercises(exercisesData as SessionExercise[]);
+            
+            const initialProgress = (exercisesData as SessionExercise[]).map(ex => ({
               id: ex.id,
               name: ex.name,
               totalSets: ex.sets,
               completedSets: 0,
             }));
             setExerciseProgress(initialProgress);
-          } else {
+          } else if (exercisesData && (exercisesData as { error: string }).error) {
             setError((exercisesData as { error: string }).error || "Erreur lors de la récupération des exercices.");
+            setExercises([]); setExerciseProgress([]);
+          } else {
+            console.warn("DEBUG: exercisesData n'est pas un tableau et n'est pas un objet d'erreur reconnu:", exercisesData);
+            setError("Réponse inattendue du serveur pour les exercices.");
             setExercises([]); setExerciseProgress([]);
           }
         } catch (e: any) {
@@ -129,16 +147,15 @@ export default function SessionDetailScreen() {
     if (currentSessionId) loadTokenAndExercises();
     else if (params && Object.keys(params).length > 0 && !params.id) setIsLoading(false);
     else if (!params || Object.keys(params).length === 0) setIsLoading(false);
-    
+
   }, [currentSessionId]);
 
 
   // Timer effect
   useEffect(() => {
     if (isSessionActive && sessionStartTime) {
-      if (timerIntervalRef.current === null) { 
+      if (timerIntervalRef.current === null) {
         timerIntervalRef.current = setInterval(() => {
-          // Calculate elapsed time based on current time and start time for accuracy
           setElapsedTime(Math.floor((Date.now() - sessionStartTime) / 1000));
         }, 1000) as unknown as number;
       }
@@ -148,7 +165,7 @@ export default function SessionDetailScreen() {
         timerIntervalRef.current = null;
       }
     }
-    return () => { 
+    return () => {
       if (timerIntervalRef.current !== null) {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
@@ -162,9 +179,9 @@ export default function SessionDetailScreen() {
       const onBackPress = () => {
         if (isSessionActive) {
           setShowExitConfirmationModal(true);
-          return true; 
+          return true;
         }
-        return false; 
+        return false;
       };
 
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
@@ -175,8 +192,8 @@ export default function SessionDetailScreen() {
 
   const handleStartSession = () => {
     setIsSessionActive(true);
-    setSessionStartTime(Date.now()); 
-    setElapsedTime(0); 
+    setSessionStartTime(Date.now());
+    setElapsedTime(0);
     const initialProgress = exercises.map(ex => ({
       id: ex.id,
       name: ex.name,
@@ -207,37 +224,34 @@ export default function SessionDetailScreen() {
       })
     );
   };
-  
+
   const handleEndSession = () => {
     if (!allSetsCompleted) {
         Alert.alert("Attention", "Veuillez compléter toutes les séries de tous les exercices avant de terminer la séance.");
         return;
     }
 
-    const finalElapsedTime = elapsedTime; // Capture current elapsed time before state changes
-    setIsSessionActive(false); 
-    // sessionStartTime will be set to null by the timer's useEffect due to isSessionActive change
-    
+    const finalElapsedTime = elapsedTime;
+    setIsSessionActive(false);
+
     console.log("Session terminée sur SessionDetailScreen. Temps total:", formatTime(finalElapsedTime), "Progression:", exerciseProgress);
-    
-    // Reset exercise progress for this screen (in case user navigates back somehow without full reload)
-     const initialProgress = exercises.map(ex => ({
+
+    const initialProgress = exercises.map(ex => ({
       id: ex.id,
       name: ex.name,
       totalSets: ex.sets,
       completedSets: 0,
     }));
     setExerciseProgress(initialProgress);
-    setElapsedTime(0); // Reset elapsed time for UI on this screen
+    setElapsedTime(0);
 
-    // Redirect to dashboard with parameters to trigger the auto-closing modal
-    router.replace({ 
-        pathname: "/dashboard/dashboard", 
-        params: { 
-            sessionJustEnded: "true", 
+    router.replace({
+        pathname: "/dashboard/dashboard",
+        params: {
+            sessionJustEnded: "true",
             sessionTime: formatTime(finalElapsedTime),
-            sessionName: currentSessionName 
-        } 
+            sessionName: currentSessionName
+        }
     });
   };
 
@@ -245,7 +259,7 @@ export default function SessionDetailScreen() {
   const handleYouTubeSearch = async (exerciseName: string) => {
     if (!exerciseName) return;
     const query = encodeURIComponent(`Tuto: ${exerciseName}`);
-    const url = `https://www.youtube.com/results?search_query=${query}`; 
+    const url = `https://www.youtube.com/results?search_query=${query}`;
     try {
       const supported = await Linking.canOpenURL(url);
       if (supported) await Linking.openURL(url);
@@ -255,15 +269,19 @@ export default function SessionDetailScreen() {
       console.error("YouTube Linking Error:", error);
     }
   };
-  
+
   const retryLoadExercises = async () => {
     if (token && currentSessionId) {
       setIsLoading(true); setError(null);
       try {
         const exercisesData = await fetchExercisesForOneSession(currentSessionId, token);
+        console.log("DEBUG (retry): Données brutes de fetchExercisesForOneSession:", JSON.stringify(exercisesData, null, 2));
         if (Array.isArray(exercisesData)) {
-          setExercises(exercisesData);
-          const initialProgress = exercisesData.map(ex => ({ id: ex.id, name:ex.name, totalSets: ex.sets, completedSets: 0 }));
+          exercisesData.forEach((item: any, index: number) => { 
+            if (item && typeof item.image_url === 'undefined') console.warn(`DEBUG (retry): Élément ${index} ('${item.name || 'Nom inconnu'}') N'A PAS de image_url.`);
+          });
+          setExercises(exercisesData as SessionExercise[]);
+          const initialProgress = (exercisesData as SessionExercise[]).map(ex => ({ id: ex.id, name:ex.name, totalSets: ex.sets, completedSets: 0 }));
           setExerciseProgress(initialProgress);
         } else {
           setError((exercisesData as {error: string}).error || "Erreur lors de la récupération des exercices.");
@@ -282,9 +300,9 @@ export default function SessionDetailScreen() {
 
   const confirmExitSession = () => {
     setShowExitConfirmationModal(false);
-    setIsSessionActive(false); 
-    setElapsedTime(0); 
-    router.back(); 
+    setIsSessionActive(false);
+    setElapsedTime(0);
+    router.back();
   };
 
   const allSetsCompleted = exercises.length > 0 && exerciseProgress.every(
@@ -322,7 +340,7 @@ export default function SessionDetailScreen() {
     );
   }
 
-  if (!isSessionActive && exercises.length === 0) { 
+  if (!isSessionActive && exercises.length === 0) {
     return (
       <View style={styles.mainContainer}>
         <View style={styles.headerBar}>
@@ -333,8 +351,8 @@ export default function SessionDetailScreen() {
         <View style={styles.centered}>
           <MaterialIcons name="fitness-center" size={48} color={Colors.dark.secondary}/>
           <Text style={styles.infoText}>Aucun exercice trouvé pour cette séance.</Text>
-            <TouchableOpacity 
-                style={[styles.startSessionButton, exercises.length === 0 && styles.buttonDisabled]} 
+            <TouchableOpacity
+                style={[styles.startSessionButton, exercises.length === 0 && styles.buttonDisabled]}
                 onPress={handleStartSession}
                 disabled={exercises.length === 0}
             >
@@ -349,11 +367,11 @@ export default function SessionDetailScreen() {
   return (
     <View style={styles.mainContainer}>
       <View style={styles.headerBar}>
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => {
             if (isSessionActive) setShowExitConfirmationModal(true);
             else router.back();
-          }} 
+          }}
           style={styles.headerButton}
         >
           <BackIcon />
@@ -369,8 +387,8 @@ export default function SessionDetailScreen() {
       </View>
 
       {!isSessionActive && exercises.length > 0 && (
-        <TouchableOpacity 
-            style={styles.startSessionButton} 
+        <TouchableOpacity
+            style={styles.startSessionButton}
             onPress={handleStartSession}
         >
           <Text style={styles.startSessionButtonText}>Commencer la Séance</Text>
@@ -383,7 +401,7 @@ export default function SessionDetailScreen() {
             const progress = exerciseProgress.find(p => p.id === sessionEx.id);
             if (!sessionEx || !sessionEx.name || !progress) {
               return (
-                <View key={`error-${sessionEx?.id}`} style={styles.exerciseCard}>
+                <View key={`error-${sessionEx?.id || Math.random()}`} style={styles.exerciseCard}>
                   <Text style={styles.exerciseName}>Données d'exercice invalides</Text>
                 </View>
               );
@@ -391,6 +409,26 @@ export default function SessionDetailScreen() {
 
             return (
               <View key={sessionEx.id} style={styles.exerciseCard}>
+                {/* Exercise Image Container */}
+                <View style={styles.exerciseImageContainer}>
+                  {sessionEx.image_url ? (
+                    <Image
+                      source={{ uri: sessionEx.image_url }}
+                      style={styles.exerciseImage} 
+                      resizeMode="contain" 
+                      onError={(e) => {
+                        console.warn(`ERREUR CHARGEMENT IMAGE pour ${sessionEx.name} (URL: ${sessionEx.image_url}): `, e.nativeEvent.error);
+                      }}
+                      onLoad={() => console.log(`Image chargée avec succès pour ${sessionEx.name}: ${sessionEx.image_url}`)}
+                    />
+                  ) : (
+                    <View style={styles.exerciseImagePlaceholder}>
+                      <MaterialIcons name="image" size={40} color={Colors.dark.secondary} />
+                      <Text style={styles.exerciseImagePlaceholderText}>Pas d'image</Text>
+                    </View>
+                  )}
+                </View>
+
                 <Text style={styles.exerciseName}>{sessionEx.name}</Text>
                 {sessionEx.description && (<Text style={styles.exerciseDescription}>{sessionEx.description}</Text>)}
                 <View style={styles.exerciseDetailsRow}>
@@ -399,7 +437,7 @@ export default function SessionDetailScreen() {
                   <View style={styles.detailItem}><Text style={styles.detailLabel}>Repos</Text><Text style={styles.detailValue}>{sessionEx.rest_time}s</Text></View>
                 </View>
                 <View style={styles.exerciseMetaRow}><Text style={styles.metaText}>Groupe Musculaire: {sessionEx.muscle_group || "-"}</Text></View>
-                
+
                 {isSessionActive && (
                   <View style={styles.setsProgressContainer}>
                     <Text style={styles.setsProgressText}>
@@ -448,7 +486,7 @@ export default function SessionDetailScreen() {
       {isSessionActive && (
         <TouchableOpacity
           style={[styles.endSessionButton, !allSetsCompleted && styles.buttonDisabled]}
-          onPress={handleEndSession} // Changed from triggerEndSession
+          onPress={handleEndSession}
           disabled={!allSetsCompleted}
         >
           <Text style={styles.endSessionButtonText}>Terminer la Séance</Text>
@@ -479,10 +517,6 @@ export default function SessionDetailScreen() {
           </View>
         </View>
       </Modal>
-
-      {/* End Session Confirmation Modal REMOVED from this screen */}
-      {/* It will be handled by the DashboardScreen based on route params */}
-
     </View>
   );
 }
@@ -515,7 +549,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   headerButtonPlaceholder: {
-    width: 60, 
+    width: 60,
     alignItems: 'flex-end',
   },
   title: {
@@ -529,7 +563,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: Colors.dark.tint,
-    minWidth: 60, 
+    minWidth: 60,
     textAlign: 'right',
   },
   centered: {
@@ -588,6 +622,39 @@ const styles = StyleSheet.create({
     shadowRadius: 2.62,
     elevation: 4,
   },
+  // Conteneur pour l'image et son placeholder, pour appliquer la bordure et le borderRadius
+  exerciseImageContainer: {
+    width: 240, 
+    height: 240,
+    alignSelf: 'center', 
+    borderRadius: 8, // Coins arrondis pour le conteneur
+    marginBottom: 12,
+    backgroundColor: Colors.dark.card, 
+    borderWidth: 1, 
+    borderColor: Colors.dark.secondaryBackground, 
+    overflow: 'hidden', // Important pour que le borderRadius du conteneur coupe l'image
+  },
+  // Style pour l'image elle-même
+  exerciseImage: {
+    width: "100%", // L'image prend toute la largeur de son conteneur carré
+    height: "100%", // L'image prend toute la hauteur de son conteneur carré
+    // borderRadius n'est plus nécessaire ici, car le parent exerciseImageContainer s'en charge avec overflow: 'hidden'
+  },
+  exerciseImagePlaceholder: {
+    // Le placeholder remplit également le conteneur exerciseImageContainer
+    width: "100%",
+    height: "100%",
+    // borderRadius n'est plus nécessaire ici
+    backgroundColor: Colors.dark.secondaryBackground, 
+    justifyContent: 'center',
+    alignItems: 'center',
+    // La bordure est déjà sur exerciseImageContainer
+  },
+  exerciseImagePlaceholderText: {
+    marginTop: 8,
+    color: Colors.dark.secondary,
+    fontSize: 14,
+  },
   exerciseName: {
     fontSize: 19,
     fontWeight: "bold",
@@ -625,7 +692,7 @@ const styles = StyleSheet.create({
   },
   exerciseMetaRow: {
     marginTop: 10,
-    marginBottom: 10, 
+    marginBottom: 10,
   },
   metaText: {
     fontSize: 13,
@@ -640,7 +707,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 8,
-    marginTop: 15, 
+    marginTop: 15,
     borderWidth: 1,
     borderColor: Colors.dark.youtubeRed || Colors.dark.primary,
   },
@@ -652,7 +719,7 @@ const styles = StyleSheet.create({
   },
   startSessionButton: {
     backgroundColor: Colors.dark.primary,
-    paddingVertical: 14, 
+    paddingVertical: 14,
     paddingHorizontal: 30,
     borderRadius: 25,
     alignSelf: 'center',
@@ -665,47 +732,47 @@ const styles = StyleSheet.create({
   },
   startSessionButtonText: {
     color: Colors.dark.background,
-    fontSize: 17, 
+    fontSize: 17,
     fontWeight: "bold",
   },
   setsProgressContainer: {
-    marginTop: 12, 
-    marginBottom: 8, 
+    marginTop: 12,
+    marginBottom: 8,
     alignItems: 'center',
-    paddingVertical: 8, 
+    paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: Colors.dark.secondaryBackground || Colors.dark.secondary,
   },
   setsProgressText: {
-    fontSize: 15, 
+    fontSize: 15,
     color: Colors.dark.text,
-    marginBottom: 10, 
+    marginBottom: 10,
     fontWeight: '500',
   },
-  setButtonsRow: { 
+  setButtonsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around', 
-    width: '100%', 
+    justifyContent: 'space-around',
+    width: '100%',
     marginTop: 5,
   },
-  setActionButton: { 
+  setActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 20,
-    marginHorizontal: 5, 
-    minWidth: 140, 
+    marginHorizontal: 5,
+    minWidth: 140,
     justifyContent: 'center',
   },
-  markSetButton: { 
+  markSetButton: {
     backgroundColor: Colors.dark.tint,
   },
-  unmarkSetButton: { 
-    backgroundColor: Colors.dark.secondary, 
+  unmarkSetButton: {
+    backgroundColor: Colors.dark.secondary,
   },
   setActionButtonText: {
-    color: Colors.dark.background, 
+    color: Colors.dark.background,
     fontSize: 14,
     fontWeight: "bold",
     marginLeft: 8,
@@ -714,8 +781,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dark.primary,
     paddingVertical: 15,
     marginHorizontal: 20,
-    marginBottom: 15, 
-    marginTop: 10, 
+    marginBottom: 15,
+    marginTop: 10,
     alignItems: 'center',
     borderRadius: 8,
     shadowColor: "#000",
@@ -725,26 +792,26 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   endSessionButtonText: {
-    color: Colors.dark.background, 
+    color: Colors.dark.background,
     fontSize: 16,
     fontWeight: "bold",
   },
   buttonDisabled: {
-    backgroundColor: Colors.dark.disabled || '#555555', 
+    backgroundColor: Colors.dark.disabled || '#555555',
     opacity: 0.6,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.7)", 
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     justifyContent: "center",
     alignItems: "center",
   },
   modalContainer: {
     width: "85%",
-    maxWidth: 380, 
+    maxWidth: 380,
     backgroundColor: Colors.dark.card,
     borderRadius: 15,
-    paddingVertical: 25, 
+    paddingVertical: 25,
     paddingHorizontal: 20,
     alignItems: "center",
     shadowColor: "#000",
@@ -761,25 +828,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   modalMessage: {
-    fontSize: 16, 
+    fontSize: 16,
     color: Colors.dark.text,
     textAlign: "center",
     marginBottom: 25,
-    lineHeight: 23, 
+    lineHeight: 23,
   },
   modalButtonContainer: {
     flexDirection: "row",
-    justifyContent: "space-between", 
+    justifyContent: "space-between",
     width: "100%",
-    marginTop: 10, 
+    marginTop: 10,
   },
   modalButton: {
-    borderRadius: 8, 
-    paddingVertical: 12, 
+    borderRadius: 8,
+    paddingVertical: 12,
     paddingHorizontal: 15,
-    flex: 1, 
+    flex: 1,
     alignItems: "center",
-    marginHorizontal: 8, 
+    marginHorizontal: 8,
   },
   modalCancelButton: {
     backgroundColor: Colors.dark.secondaryBackground || Colors.dark.secondary,
@@ -790,18 +857,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   modalConfirmButton: {
-    backgroundColor: Colors.dark.primary, 
+    backgroundColor: Colors.dark.primary,
   },
-  modalConfirmButtonText: { 
-    color: Colors.dark.background, 
+  modalConfirmButtonText: {
+    color: Colors.dark.background,
     fontWeight: "bold",
     fontSize: 15,
   },
-  // Style for the "OK" button text in the End Session Modal (was removed, but logic is now on dashboard)
-  // If you were to re-add a similar modal here, this style would be relevant:
-  // endSessionModalOkButtonText: {
-  //   color: Colors.dark.textWhite || Colors.dark.text || '#FFFFFF', 
-  //   fontWeight: "bold",
-  //   fontSize: 15,
-  // }
 });

@@ -573,8 +573,9 @@ export default function DashboardScreen() {
                     dayNumber >= 1 && dayNumber <= 7
                       ? FRENCH_DAYS[dayNumber - 1]
                       : `Jour ${dayNumber}`;
-                  const isPastSessionInWeek = dayNumber < currentDayOfWeek;
-                  const isFutureSessionInWeek = dayNumber > currentDayOfWeek;
+                  
+                  const isPastSessionAndNotCurrent = dayNumber < currentDayOfWeek;
+                  const isFutureSessionAndNotCurrent = dayNumber > currentDayOfWeek;
                   const isCurrentDaySession = dayNumber === currentDayOfWeek;
 
                   return (
@@ -582,29 +583,43 @@ export default function DashboardScreen() {
                       key={session.id}
                       style={[
                         styles.sessionItem,
-                        isPastSessionInWeek && styles.pastSessionItem, // Style for past sessions
-                        isCurrentDaySession && styles.currentDaySessionItem, // Style for current day's session
-                        // Future sessions will have default styling unless a specific one is added
+                        isPastSessionAndNotCurrent && styles.pastSessionItem,
+                        isCurrentDaySession && styles.currentDaySessionItem,
+                        // Future sessions use default sessionItem or specific future style if added
                       ]}
                       onPress={() => triggerSessionPress(session)}
                     >
                       <View style={styles.sessionTextContainer}>
-                        <Text
-                          style={[
-                            styles.sessionDayName,
-                            (isPastSessionInWeek || isFutureSessionInWeek) &&
-                              !isCurrentDaySession &&
-                              styles.offDaySessionText,
-                          ]}
-                        >
-                          {dayName}
-                        </Text>
+                        <View style={styles.sessionHeaderRow}>
+                          <Text
+                            style={[
+                              styles.sessionDayName,
+                              isPastSessionAndNotCurrent && styles.pastSessionDayNameText,
+                              isFutureSessionAndNotCurrent && styles.offDaySessionText,
+                              isCurrentDaySession && styles.currentDaySessionDayNameText,
+                            ]}
+                          >
+                            {dayName}
+                          </Text>
+                          {isPastSessionAndNotCurrent && (
+                            <View style={styles.missedSessionBadge}>
+                              <MaterialIcons
+                                name="warning-amber"
+                                size={14}
+                                color={styles.missedSessionBadgeText.color}
+                              />
+                              <Text style={styles.missedSessionBadgeText}>
+                                Séance manquée
+                              </Text>
+                            </View>
+                          )}
+                        </View>
                         <Text
                           style={[
                             styles.sessionName,
-                            (isPastSessionInWeek || isFutureSessionInWeek) &&
-                              !isCurrentDaySession &&
-                              styles.offDaySessionText,
+                            isPastSessionAndNotCurrent && styles.pastSessionNameText,
+                            isFutureSessionAndNotCurrent && styles.offDaySessionText,
+                            isCurrentDaySession && styles.currentDaySessionNameText,
                           ]}
                           numberOfLines={2}
                           ellipsizeMode="tail"
@@ -614,9 +629,9 @@ export default function DashboardScreen() {
                         <Text
                           style={[
                             styles.sessionInfo,
-                            (isPastSessionInWeek || isFutureSessionInWeek) &&
-                              !isCurrentDaySession &&
-                              styles.offDaySessionText,
+                            isPastSessionAndNotCurrent && styles.pastSessionInfoText,
+                            isFutureSessionAndNotCurrent && styles.offDaySessionText,
+                             isCurrentDaySession && styles.currentDaySessionInfoText,
                           ]}
                         >
                           {exerciseCount} exercice
@@ -753,10 +768,10 @@ export default function DashboardScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalConfirmButton]}
-                onPress={confirmOffDaySession} // Renamed from confirmPastSession
+                onPress={confirmOffDaySession}
               >
                 <Text style={styles.modalConfirmButtonText}>
-                  Oui, commencer
+                  Oui
                 </Text>
               </TouchableOpacity>
             </View>
@@ -766,6 +781,12 @@ export default function DashboardScreen() {
     </View>
   );
 }
+
+const missedWarningColor = Colors.dark.warning;
+const pastItemBackgroundColor = Colors.dark.warningBackground;
+const pastItemBorderColor = Colors.dark.warningBorder;
+const pastItemTextColor = Colors.dark.warningText;
+const pastItemNameTextColor = Colors.dark.warningTitleText;
 
 const styles = StyleSheet.create({
   mainContainer: {
@@ -885,49 +906,82 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   sessionItem: {
-    backgroundColor: Colors.dark.background,
-    paddingVertical: 15,
+    backgroundColor: Colors.dark.background, // Default background
+    paddingVertical: 12, // Adjusted padding
     paddingHorizontal: 15,
     borderRadius: 10,
     marginBottom: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     borderWidth: 1,
-    borderColor: Colors.dark.secondary,
+    borderColor: Colors.dark.secondary, // Default border
   },
   pastSessionItem: {
-    backgroundColor: Colors.dark.secondaryBackground || "#3a3a3c", // Darker grey for past
-    borderColor: Colors.dark.disabled || "#505052",
+    backgroundColor: pastItemBackgroundColor,
+    borderColor: pastItemBorderColor,
+    // No change to borderWidth, keeps it consistent unless specified
   },
   currentDaySessionItem: {
-    // Style for current day's session
-    borderColor: Colors.dark.primary, // Highlight border
-    borderWidth: 2, // Thicker border
-    backgroundColor: Colors.dark.card, // Optional: slightly different background
-  },
-  offDaySessionText: {
-    // Common style for text of past or future sessions (not current day)
-    color: Colors.dark.disabledText || Colors.dark.secondary || "#999999",
+    borderColor: Colors.dark.primary,
+    borderWidth: 2,
+    backgroundColor: Colors.dark.card, 
   },
   sessionTextContainer: {
     flex: 1,
   },
-  sessionDayName: {
+  sessionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4, // Adjust as needed
+  },
+  sessionDayName: { // Default style for day name
     fontSize: 13,
     fontWeight: "bold",
-    color: Colors.dark.tint,
-    marginBottom: 5,
+    color: Colors.dark.tint, // Default color for day name
   },
-  sessionName: {
+  pastSessionDayNameText: { // Specific for past sessions
+    color: pastItemTextColor, // Use the distinct text color for past items
+  },
+  currentDaySessionDayNameText: { // Specific for current day sessions
+    color: Colors.dark.primary, // Example: Highlight color for current day
+  },
+  sessionName: { // Default style for session name
     fontSize: 17,
     fontWeight: "bold",
-    color: Colors.dark.text,
+    color: Colors.dark.text, // Default color for session name
     marginBottom: 4,
   },
-  sessionInfo: {
+  pastSessionNameText: { // Specific for past sessions
+     color: pastItemNameTextColor, // Use the distinct, possibly brighter, text color for past item names
+  },
+  currentDaySessionNameText: { // Specific for current day sessions
+     color: Colors.dark.text, // Or a highlighted color if desired
+  },
+  sessionInfo: { // Default style for session info
     fontSize: 13,
-    color: Colors.dark.secondary,
+    color: Colors.dark.secondary, // Default color for session info
+  },
+  pastSessionInfoText: { // Specific for past sessions
+    color: pastItemTextColor, // Use the distinct text color for past items
+  },
+  currentDaySessionInfoText: { // Specific for current day sessions
+    color: Colors.dark.secondary, // Or a highlighted color
+  },
+  offDaySessionText: { // For FUTURE off-day sessions (text color)
+    color: Colors.dark.disabledText || Colors.dark.secondary || "#999999",
+  },
+  missedSessionBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.2)', // Slight background for the badge itself if needed
+  },
+  missedSessionBadgeText: {
+    marginLeft: 4,
+    fontSize: 11,
+    fontWeight: '600',
+    color: missedWarningColor, // Distinct color for "Séance manquée" text & icon
   },
   actionButton: {
     paddingVertical: 12,
@@ -1005,7 +1059,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dark.primary,
   },
   modalConfirmButtonText: {
-    color: Colors.dark.background,
+    color: Colors.dark.background, // Changed to background assuming primary is light
     fontWeight: "bold",
     fontSize: 15,
   },
