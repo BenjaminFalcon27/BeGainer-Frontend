@@ -31,7 +31,29 @@ Ce projet est construit avec les technologies et bibliothèques suivantes :
 - **React Native Paper**: Une bibliothèque de composants UI Material Design.
 - Et bien d'autres listées dans le `package.json` !
 
-## 📋 Prérequis
+## 📲 Télécharger l'APK Android
+
+Pour installer BeGainer directement sur votre appareil Android sans passer par Expo Go, suivez ces étapes simples :
+
+1. Ouvrez le lien ci-dessous depuis un navigateur sur votre ordinateur :
+
+**Lien du projet Expo :** 
+[https://expo.dev/accounts/edog/projects/BeGainer-Frontend/builds/2d2e5ace-aee9-49c7-bbd3-ffab1671a234](https://expo.dev/accounts/edog/projects/BeGainer-Frontend/builds/2d2e5ace-aee9-49c7-bbd3-ffab1671a234)
+
+2. Sur la page web qui s’ouvre, cliquez sur le bouton **"Install"** (bouton bleu).  
+   Cela affichera un QR code à scanner avec votre téléphone.
+   
+4. Scannez ce QR code avec votre application caméra ou un lecteur QR.
+
+5. Votre téléphone ouvrira automatiquement la page de téléchargement de l’APK, cliquez sur le bouton **"Install"** (bouton bleu).
+
+6. Téléchargez l’APK, puis ouvrez-le pour lancer l’installation.
+
+> ⚠️ Pour installer l’APK, il est possible que vous deviez autoriser l’installation d’applications provenant de sources inconnues dans les paramètres de votre téléphone.
+
+---
+
+## 📋 Prérequis pour lancer en local
 
 Avant de commencer, assurez-vous d'avoir les outils suivants installés sur votre machine :
 
